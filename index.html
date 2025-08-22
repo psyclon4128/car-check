@@ -64,13 +64,14 @@
       <button onclick="saveData()" class="w-full bg-green-500 text-white py-3 rounded-lg text-lg">등록</button>
     </section>
 
-    <!-- 엑셀 업로드 -->
+    <!-- 엑셀 업로드 / 다운로드 -->
     <section id="uploadSection" class="mb-6 hidden">
       <h2 class="text-lg font-semibold mb-2">엑셀 업로드</h2>
       <input type="file" id="excelFile" class="w-full mb-3 text-lg">
       <div class="flex flex-col sm:flex-row gap-3">
         <button onclick="uploadExcel()" class="flex-1 bg-purple-500 text-white py-3 rounded-lg text-lg">업로드</button>
-        <button onclick="downloadTemplate()" class="flex-1 bg-gray-500 text-white py-3 rounded-lg text-lg">샘플 엑셀 다운로드</button>
+        <!-- 기존 '샘플 엑셀 다운로드' → '현재 데이터 다운로드' 로 변경 -->
+        <button onclick="exportCurrentData()" class="flex-1 bg-gray-500 text-white py-3 rounded-lg text-lg">현재 데이터 다운로드</button>
       </div>
     </section>
 
@@ -91,6 +92,7 @@
   import { getFirestore, collection, doc, getDocs, setDoc, deleteDoc } 
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
+  // === Firebase 설정 (사용자 파일값 유지) ===
   const firebaseConfig = {
     apiKey: "AIzaSyB-yJWX6qRnkWpHWLqyWyr6NFw7kQDPStA",
     authDomain: "car-check-ae332.firebaseapp.com",
@@ -119,14 +121,14 @@
     let found = false;
     snap.forEach(docSnap => {
       const d = docSnap.data();
-      if (d.carNum.endsWith(num)) {
+      if ((d.carNum || '').slice(-4) === num) {
         resultDiv.innerHTML += `
           <div class="border p-3 rounded-lg mb-3 bg-gray-50 text-lg">
-            <p><b>이름:</b> ${d.name}</p>
-            <p><b>소속:</b> ${d.org}</p>
-            <p><b>전화번호:</b> ${d.phone}</p>
-            <p><b>차량번호:</b> ${d.carNum}</p>
-            <p><b>차종:</b> ${d.carType}</p>
+            <p><b>이름:</b> ${d.name || ''}</p>
+            <p><b>소속:</b> ${d.org || ''}</p>
+            <p><b>전화번호:</b> ${d.phone || ''}</p>
+            <p><b>차량번호:</b> ${d.carNum || ''}</p>
+            <p><b>차종:</b> ${d.carType || ''}</p>
           </div>`;
         found = true;
       }
@@ -175,19 +177,41 @@
     reader.readAsArrayBuffer(file);
   }
 
-  // 샘플 엑셀 다운로드
-  window.downloadTemplate = function() {
-    const wb = XLSX.utils.book_new();
-    const wsData = [
-      ["이름", "소속", "전화번호", "차량번호", "차종"],
-      ["홍길동", "국세공무원교육원", "010-1234-5678", "12가3456", "소나타"],
-      ["예시1", "국세상담센터", "010-1111-1111", "34나5678", "아반떼"],
-      ["예시2", "주류면허지원센터", "010-2222-2222", "56다9012", "그랜저"],
-      ["참고", "선택: 국세공무원교육원, 국세상담센터, 주류면허지원센터, 서귀포지서, 교육생, 기타", "", "", ""]
-    ];
-    const ws = XLSX.utils.aoa_to_sheet(wsData);
-    XLSX.utils.book_append_sheet(wb, ws, "템플릿");
-    XLSX.writeFile(wb, "차량등록템플릿.xlsx");
+  // 🔽 현재 Firestore 데이터 엑셀로 다운로드
+  window.exportCurrentData = async function() {
+    try {
+      const snap = await getDocs(collection(db, "cars"));
+      const header = ["이름", "소속", "전화번호", "차량번호", "차종"];
+      const rows = [];
+
+      snap.forEach(docSnap => {
+        const d = docSnap.data();
+        rows.push([
+          d.name || "", 
+          d.org || "", 
+          d.phone || "", 
+          d.carNum || "", 
+          d.carType || ""
+        ]);
+      });
+
+      if (rows.length === 0) {
+        if (!confirm("저장된 데이터가 없습니다. 빈 양식을 다운로드할까요?")) return;
+      }
+
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
+      XLSX.utils.book_append_sheet(wb, ws, "차량데이터");
+
+      const now = new Date();
+      const pad = n => String(n).padStart(2, "0");
+      const filename = `차량데이터_${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}.xlsx`;
+
+      XLSX.writeFile(wb, filename);
+    } catch (e) {
+      console.error(e);
+      alert("다운로드 중 오류가 발생했습니다.");
+    }
   }
 
   // 데이터 일괄삭제
