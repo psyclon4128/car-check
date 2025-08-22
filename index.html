@@ -3,16 +3,21 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>국세공무원교육원 차량조회 등록</title>
+  <title>국세공무원교육원 차량조회·등록</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
-<body class="bg-gray-100 p-4 overflow-x-hidden">
-  <div class="w-full max-w-screen-sm mx-auto bg-white p-6 rounded-xl shadow-md">
+<body class="bg-gray-100 p-4 overflow-x-hidden relative min-h-screen flex flex-col">
 
-    <h1 class="text-2xl font-bold mb-6 text-center">국세공무원교육원 차량조회 등록</h1>
+  <div class="w-full max-w-screen-sm mx-auto bg-white p-6 rounded-xl shadow-md flex-1">
+
+    <!-- 제목 이미지 -->
+    <div class="mb-4 flex flex-col items-center">
+      <img src="/mnt/data/국세공무원교육원.png" alt="국세공무원교육원" class="w-48 max-w-full mb-2">
+      <h1 class="text-xl font-bold text-center">차량조회·등록</h1>
+    </div>
 
     <!-- 차량번호 검색 -->
     <section class="mb-6">
@@ -76,6 +81,11 @@
 
   </div>
 
+  <!-- 하단 제작자 표시 -->
+  <div class="text-right w-full p-2 text-sm text-gray-500 mt-auto">
+    made by Banseok Kim
+  </div>
+
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
   import { getFirestore, collection, doc, getDocs, setDoc, deleteDoc } 
@@ -124,8 +134,112 @@
     if (!found) resultDiv.innerHTML = "<p class='text-red-500 text-lg'>등록된 차량이 없습니다.</p>";
   }
 
-  // 이하 기존 JS 코드 동일 (등록, 엑셀 업로드, 샘플 다운로드, 삭제, 로그인/로그아웃)
-  // saveData(), uploadExcel(), downloadTemplate(), deleteAllData(), adminLogin(), adminLogout(), window.onload()
+  // 신규 등록
+  window.saveData = async function() {
+    const name = document.getElementById('name').value.trim();
+    const org = document.getElementById('org').value;
+    const phone = document.getElementById('phone').value.trim();
+    const carNum = document.getElementById('carNum').value.trim();
+    const carType = document.getElementById('carType').value.trim();
+
+    if (!name || !org || !phone || !carNum || !carType) {
+      alert("모든 항목을 입력하세요.");
+      return;
+    }
+
+    await setDoc(doc(db, "cars", carNum), { name, org, phone, carNum, carType });
+    alert("등록 완료!");
+  }
+
+  // 엑셀 업로드
+  window.uploadExcel = async function() {
+    const file = document.getElementById('excelFile').files[0];
+    if (!file) { alert("엑셀 파일을 선택하세요."); return; }
+
+    const reader = new FileReader();
+    reader.onload = async function(e) {
+      const data = new Uint8Array(e.target.result);
+      const wb = XLSX.read(data, {type:'array'});
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet);
+
+      for (let row of rows) {
+        if (row.차량번호) {
+          await setDoc(doc(db, "cars", row.차량번호), {
+            name: row.이름||"", org: row.소속||"", phone: row.전화번호||"", carNum: row.차량번호, carType: row.차종||""
+          });
+        }
+      }
+      alert("엑셀 업로드 완료!");
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  // 샘플 엑셀 다운로드
+  window.downloadTemplate = function() {
+    const wb = XLSX.utils.book_new();
+    const wsData = [
+      ["이름", "소속", "전화번호", "차량번호", "차종"],
+      ["홍길동", "국세공무원교육원", "010-1234-5678", "12가3456", "소나타"],
+      ["예시1", "국세상담센터", "010-1111-1111", "34나5678", "아반떼"],
+      ["예시2", "주류면허지원센터", "010-2222-2222", "56다9012", "그랜저"],
+      ["참고", "선택: 국세공무원교육원, 국세상담센터, 주류면허지원센터, 서귀포지서, 교육생, 기타", "", "", ""]
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    XLSX.utils.book_append_sheet(wb, ws, "템플릿");
+    XLSX.writeFile(wb, "차량등록템플릿.xlsx");
+  }
+
+  // 데이터 일괄삭제
+  window.deleteAllData = async function() {
+    if (!confirm("실행하시겠습니까?")) return;
+
+    const snap = await getDocs(collection(db, "cars"));
+    for (let docSnap of snap.docs) {
+      await deleteDoc(doc(db, "cars", docSnap.id));
+    }
+    alert("모든 차량 데이터가 삭제되었습니다!");
+  }
+
+  // 관리자 로그인
+  window.adminLogin = function() {
+    const id = document.getElementById('adminId').value;
+    const pw = document.getElementById('adminPw').value;
+    const msg = document.getElementById('loginMsg');
+
+    if (id === "admin" && pw === "rydbrdnjs1!") {
+      localStorage.setItem("adminLoggedIn", "true");
+      document.getElementById("registerSection").classList.remove("hidden");
+      document.getElementById("uploadSection").classList.remove("hidden");
+      document.getElementById("deleteSection").classList.remove("hidden");
+      document.getElementById("logoutSection").classList.remove("hidden");
+      document.getElementById("loginSection").classList.add("hidden");
+    } else {
+      msg.innerText = "아이디 또는 비밀번호가 올바르지 않습니다.";
+    }
+  }
+
+  // 관리자 로그아웃
+  window.adminLogout = function() {
+    localStorage.removeItem("adminLoggedIn");
+    document.getElementById("registerSection").classList.add("hidden");
+    document.getElementById("uploadSection").classList.add("hidden");
+    document.getElementById("deleteSection").classList.add("hidden");
+    document.getElementById("logoutSection").classList.add("hidden");
+    document.getElementById("loginSection").classList.remove("hidden");
+    alert("로그아웃 되었습니다.");
+  }
+
+  // 로그인 상태 유지
+  window.onload = function() {
+    if (localStorage.getItem("adminLoggedIn") === "true") {
+      document.getElementById("registerSection").classList.remove("hidden");
+      document.getElementById("uploadSection").classList.remove("hidden");
+      document.getElementById("deleteSection").classList.remove("hidden");
+      document.getElementById("logoutSection").classList.remove("hidden");
+      document.getElementById("loginSection").classList.add("hidden");
+    }
+  }
 </script>
 </body>
 </html>
