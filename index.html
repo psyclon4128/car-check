@@ -56,16 +56,25 @@
     <section id="uploadSection" class="mb-6 hidden">
       <h2 class="text-lg font-semibold mb-2">엑셀 업로드</h2>
       <input type="file" id="excelFile" class="mb-2">
-      <button onclick="uploadExcel()" class="w-full bg-purple-500 text-white py-2 rounded-lg">업로드</button>
+      <div class="flex gap-2">
+        <button onclick="uploadExcel()" class="flex-1 bg-purple-500 text-white py-2 rounded-lg">업로드</button>
+        <button onclick="downloadTemplate()" class="flex-1 bg-gray-500 text-white py-2 rounded-lg">샘플 엑셀 다운로드</button>
+      </div>
     </section>
+
+    <!-- 데이터 일괄삭제 (관리자만) -->
+    <section id="deleteSection" class="mb-6 hidden">
+      <button onclick="deleteAllData()" 
+              class="w-full bg-red-500 text-white py-2 rounded-lg">데이터 일괄삭제</button>
+    </section>
+
   </div>
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getFirestore, collection, addDoc, query, where, getDocs, setDoc, doc } 
+  import { getFirestore, collection, doc, getDocs, setDoc, deleteDoc } 
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-  // 🔹 Firebase 설정 (여기에 본인 Firebase 설정값 넣으세요)
   const firebaseConfig = {
     apiKey: "AIzaSyB-yJWX6qRnkWpHWLqyWyr6NFw7kQDPStA",
     authDomain: "car-check-ae332.firebaseapp.com",
@@ -79,7 +88,7 @@
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
 
-  // ✅ 차량 검색
+  // 차량 검색
   window.searchCar = async function() {
     const num = document.getElementById('searchNum').value.trim();
     const resultDiv = document.getElementById('searchResult');
@@ -90,14 +99,11 @@
       return;
     }
 
-    const q = query(collection(db, "cars"), where("carNum", ">=", num), where("carNum", "<=", num + "\uf8ff"));
-    const snap = await getDocs(q);
-
-    if (snap.empty) {
-      resultDiv.innerHTML = "<p class='text-red-500'>해당 차량이 없습니다.</p>";
-    } else {
-      snap.forEach(doc => {
-        const d = doc.data();
+    const snap = await getDocs(collection(db, "cars"));
+    let found = false;
+    snap.forEach(docSnap => {
+      const d = docSnap.data();
+      if (d.carNum.endsWith(num)) {
         resultDiv.innerHTML += `
           <div class="border p-2 rounded-lg mb-2 bg-gray-50">
             <p><b>이름:</b> ${d.name}</p>
@@ -106,17 +112,19 @@
             <p><b>차량번호:</b> ${d.carNum}</p>
             <p><b>차종:</b> ${d.carType}</p>
           </div>`;
-      });
-    }
+        found = true;
+      }
+    });
+    if (!found) resultDiv.innerHTML = "<p class='text-red-500'>등록된 차량이 없습니다.</p>";
   }
 
-  // ✅ 신규 등록
+  // 신규 등록
   window.saveData = async function() {
-    const name = document.getElementById('name').value;
+    const name = document.getElementById('name').value.trim();
     const org = document.getElementById('org').value;
-    const phone = document.getElementById('phone').value;
-    const carNum = document.getElementById('carNum').value;
-    const carType = document.getElementById('carType').value;
+    const phone = document.getElementById('phone').value.trim();
+    const carNum = document.getElementById('carNum').value.trim();
+    const carType = document.getElementById('carType').value.trim();
 
     if (!name || !org || !phone || !carNum || !carType) {
       alert("모든 항목을 입력하세요.");
@@ -127,7 +135,7 @@
     alert("등록 완료!");
   }
 
-  // ✅ 엑셀 업로드
+  // 엑셀 업로드
   window.uploadExcel = async function() {
     const file = document.getElementById('excelFile').files[0];
     if (!file) { alert("엑셀 파일을 선택하세요."); return; }
@@ -140,9 +148,9 @@
       const rows = XLSX.utils.sheet_to_json(sheet);
 
       for (let row of rows) {
-        if (row.이름 && row.소속 && row.전화번호 && row.차량번호 && row.차종) {
+        if (row.차량번호) {
           await setDoc(doc(db, "cars", row.차량번호), {
-            name: row.이름, org: row.소속, phone: row.전화번호, carNum: row.차량번호, carType: row.차종
+            name: row.이름||"", org: row.소속||"", phone: row.전화번호||"", carNum: row.차량번호, carType: row.차종||""
           });
         }
       }
@@ -151,7 +159,33 @@
     reader.readAsArrayBuffer(file);
   }
 
-  // ✅ 관리자 로그인
+  // 샘플 엑셀 다운로드
+  window.downloadTemplate = function() {
+    const wb = XLSX.utils.book_new();
+    const wsData = [
+      ["이름", "소속", "전화번호", "차량번호", "차종"],
+      ["홍길동", "국세공무원교육원", "010-1234-5678", "12가3456", "소나타"],
+      ["예시1", "국세상담센터", "010-1111-1111", "34나5678", "아반떼"],
+      ["예시2", "주류면허지원센터", "010-2222-2222", "56다9012", "그랜저"],
+      ["참고", "선택: 국세공무원교육원, 국세상담센터, 주류면허지원센터, 서귀포지서, 교육생, 기타", "", "", ""]
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    XLSX.utils.book_append_sheet(wb, ws, "템플릿");
+    XLSX.writeFile(wb, "차량등록템플릿.xlsx");
+  }
+
+  // 데이터 일괄삭제
+  window.deleteAllData = async function() {
+    if (!confirm("실행하시겠습니까?")) return;
+
+    const snap = await getDocs(collection(db, "cars"));
+    for (let docSnap of snap.docs) {
+      await deleteDoc(doc(db, "cars", docSnap.id));
+    }
+    alert("모든 차량 데이터가 삭제되었습니다!");
+  }
+
+  // 관리자 로그인
   window.adminLogin = function() {
     const id = document.getElementById('adminId').value;
     const pw = document.getElementById('adminPw').value;
@@ -161,17 +195,19 @@
       localStorage.setItem("adminLoggedIn", "true");
       document.getElementById("registerSection").classList.remove("hidden");
       document.getElementById("uploadSection").classList.remove("hidden");
+      document.getElementById("deleteSection").classList.remove("hidden");
       document.getElementById("loginSection").classList.add("hidden");
     } else {
       msg.innerText = "아이디 또는 비밀번호가 올바르지 않습니다.";
     }
   }
 
-  // ✅ 로그인 유지
+  // 로그인 상태 유지
   window.onload = function() {
     if (localStorage.getItem("adminLoggedIn") === "true") {
       document.getElementById("registerSection").classList.remove("hidden");
       document.getElementById("uploadSection").classList.remove("hidden");
+      document.getElementById("deleteSection").classList.remove("hidden");
       document.getElementById("loginSection").classList.add("hidden");
     }
   }
