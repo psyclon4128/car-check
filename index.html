@@ -8,15 +8,27 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+    /* 모달 애니메이션 */
+    .fade-in { animation: fadeIn 0.3s ease-in-out; }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+  </style>
 </head>
 <body class="bg-gray-100 p-4 overflow-x-hidden relative min-h-screen flex flex-col">
 
-  <div class="w-full max-w-screen-sm mx-auto bg-white p-6 rounded-xl shadow-md flex-1">
+  <div class="w-full max-w-screen-sm mx-auto bg-white p-6 rounded-xl shadow-md flex-1 relative">
 
-    <!-- 제목 이미지 -->
-    <div class="mb-4 flex flex-col items-center">
-      <img src="국세공무원교육원.png" alt="국세공무원교육원" class="w-48 max-w-full mb-2">
+    <!-- 제목 + 로그인 버튼 -->
+    <div class="mb-4 flex flex-col items-center relative">
+      <img src="국세공무원교육원.png" alt="국세공무원교육원" class="w-40 max-w-full mb-1">
       <h1 class="text-xl font-bold text-center">차량조회·등록</h1>
+      <div class="absolute top-0 right-0 text-sm">
+        <button id="loginBtn" onclick="openLoginModal()" class="text-blue-600 underline">로그인</button>
+        <button id="logoutBtn" onclick="logout()" class="hidden text-red-600 underline">로그아웃</button>
+      </div>
     </div>
 
     <!-- 차량번호 검색 -->
@@ -24,25 +36,12 @@
       <h2 class="text-lg font-semibold mb-2">차량번호 검색</h2>
       <input id="searchNum" type="text" placeholder="차량번호 뒷자리 4자리" maxlength="4" 
              class="w-full p-3 border rounded-lg mb-3 text-lg">
-      <button onclick="searchCar()" class="w-full bg-blue-500 text-white py-3 rounded-lg text-lg">검색</button>
+      <button id="searchBtn" onclick="searchCar()" 
+              class="w-full bg-blue-500 text-white py-3 rounded-lg text-lg" disabled>검색 (로그인 필요)</button>
       <div id="searchResult" class="mt-4 text-lg"></div>
     </section>
 
-    <!-- 관리자 로그인 -->
-    <section id="loginSection" class="mb-6">
-      <h2 class="text-lg font-semibold mb-2">관리자 로그인</h2>
-      <input id="adminId" type="text" placeholder="아이디" class="w-full p-3 border rounded-lg mb-3 text-lg">
-      <input id="adminPw" type="password" placeholder="비밀번호" class="w-full p-3 border rounded-lg mb-3 text-lg">
-      <button onclick="adminLogin()" class="w-full bg-gray-600 text-white py-3 rounded-lg text-lg">로그인</button>
-      <p id="loginMsg" class="text-red-500 text-base mt-2"></p>
-    </section>
-
-    <!-- 관리자 로그아웃 -->
-    <section id="logoutSection" class="mb-6 hidden">
-      <button onclick="adminLogout()" class="w-full bg-gray-800 text-white py-3 rounded-lg text-lg">로그아웃</button>
-    </section>
-
-    <!-- 신규 등록 -->
+    <!-- 신규 등록 (관리자만) -->
     <section id="registerSection" class="mb-6 hidden">
       <h2 class="text-lg font-semibold mb-2">신규 등록</h2>
       <input id="name" type="text" placeholder="이름" class="w-full p-3 border rounded-lg mb-3 text-lg">
@@ -64,18 +63,17 @@
       <button onclick="saveData()" class="w-full bg-green-500 text-white py-3 rounded-lg text-lg">등록</button>
     </section>
 
-    <!-- 엑셀 업로드 / 다운로드 -->
+    <!-- 엑셀 업로드 / 다운로드 (관리자만) -->
     <section id="uploadSection" class="mb-6 hidden">
       <h2 class="text-lg font-semibold mb-2">엑셀 업로드</h2>
       <input type="file" id="excelFile" class="w-full mb-3 text-lg">
       <div class="flex flex-col sm:flex-row gap-3">
         <button onclick="uploadExcel()" class="flex-1 bg-purple-500 text-white py-3 rounded-lg text-lg">업로드</button>
-        <!-- 기존 '샘플 엑셀 다운로드' → '현재 데이터 다운로드' 로 변경 -->
         <button onclick="exportCurrentData()" class="flex-1 bg-gray-500 text-white py-3 rounded-lg text-lg">현재 데이터 다운로드</button>
       </div>
     </section>
 
-    <!-- 데이터 일괄삭제 -->
+    <!-- 데이터 일괄삭제 (관리자만) -->
     <section id="deleteSection" class="mb-6 hidden">
       <button onclick="deleteAllData()" class="w-full bg-red-500 text-white py-3 rounded-lg text-lg">데이터 일괄삭제</button>
     </section>
@@ -87,12 +85,27 @@
     made by Banseok Kim
   </div>
 
+  <!-- 로그인 모달 -->
+  <div id="loginModal" class="hidden fixed inset-0 bg-black bg-opacity-40 fade-in flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-lg p-6 w-80 relative">
+      <!-- 닫기 버튼 -->
+      <button onclick="closeLoginModal()" class="absolute top-2 right-2 text-gray-500 text-lg">&times;</button>
+      <h2 class="text-lg font-bold mb-4 text-center">로그인</h2>
+      <input id="loginId" type="text" placeholder="아이디" class="w-full p-2 border rounded-lg mb-3">
+      <input id="loginPw" type="password" placeholder="비밀번호" class="w-full p-2 border rounded-lg mb-3">
+      <div class="flex justify-between gap-2">
+        <button onclick="checkLogin()" class="flex-1 bg-blue-600 text-white py-2 rounded-lg">로그인</button>
+        <button onclick="closeLoginModal()" class="flex-1 bg-gray-400 text-white py-2 rounded-lg">취소</button>
+      </div>
+      <p id="loginMsg" class="text-red-500 text-sm mt-2 text-center"></p>
+    </div>
+  </div>
+
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
   import { getFirestore, collection, doc, getDocs, setDoc, deleteDoc } 
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-  // === Firebase 설정 (사용자 파일값 유지) ===
   const firebaseConfig = {
     apiKey: "AIzaSyB-yJWX6qRnkWpHWLqyWyr6NFw7kQDPStA",
     authDomain: "car-check-ae332.firebaseapp.com",
@@ -106,7 +119,7 @@
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
 
-  // 차량 검색
+  // === 차량 검색 ===
   window.searchCar = async function() {
     const num = document.getElementById('searchNum').value.trim();
     const resultDiv = document.getElementById('searchResult');
@@ -136,7 +149,7 @@
     if (!found) resultDiv.innerHTML = "<p class='text-red-500 text-lg'>등록된 차량이 없습니다.</p>";
   }
 
-  // 신규 등록
+  // === 신규 등록 (관리자만) ===
   window.saveData = async function() {
     const name = document.getElementById('name').value.trim();
     const org = document.getElementById('org').value;
@@ -153,7 +166,7 @@
     alert("등록 완료!");
   }
 
-  // 엑셀 업로드
+  // === 엑셀 업로드 (관리자만) ===
   window.uploadExcel = async function() {
     const file = document.getElementById('excelFile').files[0];
     if (!file) { alert("엑셀 파일을 선택하세요."); return; }
@@ -177,47 +190,27 @@
     reader.readAsArrayBuffer(file);
   }
 
-  // 🔽 현재 Firestore 데이터 엑셀로 다운로드
+  // === 현재 데이터 다운로드 (관리자만) ===
   window.exportCurrentData = async function() {
-    try {
-      const snap = await getDocs(collection(db, "cars"));
-      const header = ["이름", "소속", "전화번호", "차량번호", "차종"];
-      const rows = [];
+    const snap = await getDocs(collection(db, "cars"));
+    const header = ["이름", "소속", "전화번호", "차량번호", "차종"];
+    const rows = [];
 
-      snap.forEach(docSnap => {
-        const d = docSnap.data();
-        rows.push([
-          d.name || "", 
-          d.org || "", 
-          d.phone || "", 
-          d.carNum || "", 
-          d.carType || ""
-        ]);
-      });
+    snap.forEach(docSnap => {
+      const d = docSnap.data();
+      rows.push([d.name||"", d.org||"", d.phone||"", d.carNum||"", d.carType||""]);
+    });
 
-      if (rows.length === 0) {
-        if (!confirm("저장된 데이터가 없습니다. 빈 양식을 다운로드할까요?")) return;
-      }
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
+    XLSX.utils.book_append_sheet(wb, ws, "차량데이터");
 
-      const wb = XLSX.utils.book_new();
-      const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
-      XLSX.utils.book_append_sheet(wb, ws, "차량데이터");
-
-      const now = new Date();
-      const pad = n => String(n).padStart(2, "0");
-      const filename = `차량데이터_${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}.xlsx`;
-
-      XLSX.writeFile(wb, filename);
-    } catch (e) {
-      console.error(e);
-      alert("다운로드 중 오류가 발생했습니다.");
-    }
+    XLSX.writeFile(wb, "차량데이터.xlsx");
   }
 
-  // 데이터 일괄삭제
+  // === 데이터 전체 삭제 (관리자만) ===
   window.deleteAllData = async function() {
     if (!confirm("실행하시겠습니까?")) return;
-
     const snap = await getDocs(collection(db, "cars"));
     for (let docSnap of snap.docs) {
       await deleteDoc(doc(db, "cars", docSnap.id));
@@ -225,45 +218,77 @@
     alert("모든 차량 데이터가 삭제되었습니다!");
   }
 
-  // 관리자 로그인
-  window.adminLogin = function() {
-    const id = document.getElementById('adminId').value;
-    const pw = document.getElementById('adminPw').value;
+  // === 로그인 모달 열기/닫기 ===
+  window.openLoginModal = function() {
+    document.getElementById("loginModal").classList.remove("hidden");
+  }
+  window.closeLoginModal = function() {
+    document.getElementById("loginModal").classList.add("hidden");
+    document.getElementById("loginMsg").innerText = "";
+    document.getElementById("loginId").value = "";
+    document.getElementById("loginPw").value = "";
+  }
+
+  // === 로그인 체크 ===
+  window.checkLogin = function() {
+    const id = document.getElementById('loginId').value;
+    const pw = document.getElementById('loginPw').value;
     const msg = document.getElementById('loginMsg');
 
     if (id === "admin" && pw === "rydbrdnjs1!") {
-      localStorage.setItem("adminLoggedIn", "true");
-      document.getElementById("registerSection").classList.remove("hidden");
-      document.getElementById("uploadSection").classList.remove("hidden");
-      document.getElementById("deleteSection").classList.remove("hidden");
-      document.getElementById("logoutSection").classList.remove("hidden");
-      document.getElementById("loginSection").classList.add("hidden");
+      localStorage.setItem("role", "admin");
+      applyRole();
+      closeLoginModal();
+      alert("관리자 로그인 성공!");
+    } else if (id === "user" && pw === "12345") {
+      localStorage.setItem("role", "user");
+      applyRole();
+      closeLoginModal();
+      alert("사용자 로그인 성공!");
     } else {
       msg.innerText = "아이디 또는 비밀번호가 올바르지 않습니다.";
     }
   }
 
-  // 관리자 로그아웃
-  window.adminLogout = function() {
-    localStorage.removeItem("adminLoggedIn");
-    document.getElementById("registerSection").classList.add("hidden");
-    document.getElementById("uploadSection").classList.add("hidden");
-    document.getElementById("deleteSection").classList.add("hidden");
-    document.getElementById("logoutSection").classList.add("hidden");
-    document.getElementById("loginSection").classList.remove("hidden");
+  // === 로그아웃 ===
+  window.logout = function() {
+    localStorage.removeItem("role");
+    applyRole();
     alert("로그아웃 되었습니다.");
   }
 
-  // 로그인 상태 유지
-  window.onload = function() {
-    if (localStorage.getItem("adminLoggedIn") === "true") {
+  // === 권한 적용 ===
+  function applyRole() {
+    const role = localStorage.getItem("role");
+
+    document.getElementById("searchBtn").disabled = true;
+    document.getElementById("searchBtn").innerText = "검색 (로그인 필요)";
+
+    document.getElementById("registerSection").classList.add("hidden");
+    document.getElementById("uploadSection").classList.add("hidden");
+    document.getElementById("deleteSection").classList.add("hidden");
+
+    document.getElementById("loginBtn").classList.remove("hidden");
+    document.getElementById("logoutBtn").classList.add("hidden");
+
+    if (role === "user") {
+      document.getElementById("searchBtn").disabled = false;
+      document.getElementById("searchBtn").innerText = "검색";
+      document.getElementById("loginBtn").classList.add("hidden");
+      document.getElementById("logoutBtn").classList.remove("hidden");
+    }
+    if (role === "admin") {
+      document.getElementById("searchBtn").disabled = false;
+      document.getElementById("searchBtn").innerText = "검색";
       document.getElementById("registerSection").classList.remove("hidden");
       document.getElementById("uploadSection").classList.remove("hidden");
       document.getElementById("deleteSection").classList.remove("hidden");
-      document.getElementById("logoutSection").classList.remove("hidden");
-      document.getElementById("loginSection").classList.add("hidden");
+      document.getElementById("loginBtn").classList.add("hidden");
+      document.getElementById("logoutBtn").classList.remove("hidden");
     }
   }
+
+  window.onload = applyRole;
 </script>
 </body>
 </html>
