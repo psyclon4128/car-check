@@ -30,6 +30,11 @@
       <p id="loginMsg" class="text-red-500 text-sm mt-2"></p>
     </section>
 
+    <!-- 관리자 로그아웃 -->
+    <section id="logoutSection" class="mb-6 hidden">
+      <button onclick="adminLogout()" class="w-full bg-gray-800 text-white py-2 rounded-lg">로그아웃</button>
+    </section>
+
     <!-- 신규 등록 (관리자만) -->
     <section id="registerSection" class="mb-6 hidden">
       <h2 class="text-lg font-semibold mb-2">신규 등록</h2>
@@ -196,10 +201,22 @@
       document.getElementById("registerSection").classList.remove("hidden");
       document.getElementById("uploadSection").classList.remove("hidden");
       document.getElementById("deleteSection").classList.remove("hidden");
+      document.getElementById("logoutSection").classList.remove("hidden");
       document.getElementById("loginSection").classList.add("hidden");
     } else {
       msg.innerText = "아이디 또는 비밀번호가 올바르지 않습니다.";
     }
+  }
+
+  // 관리자 로그아웃
+  window.adminLogout = function() {
+    localStorage.removeItem("adminLoggedIn");
+    document.getElementById("registerSection").classList.add("hidden");
+    document.getElementById("uploadSection").classList.add("hidden");
+    document.getElementById("deleteSection").classList.add("hidden");
+    document.getElementById("logoutSection").classList.add("hidden");
+    document.getElementById("loginSection").classList.remove("hidden");
+    alert("로그아웃 되었습니다.");
   }
 
   // 로그인 상태 유지
@@ -208,6 +225,7 @@
       document.getElementById("registerSection").classList.remove("hidden");
       document.getElementById("uploadSection").classList.remove("hidden");
       document.getElementById("deleteSection").classList.remove("hidden");
+      document.getElementById("logoutSection").classList.remove("hidden");
       document.getElementById("loginSection").classList.add("hidden");
     }
   }
