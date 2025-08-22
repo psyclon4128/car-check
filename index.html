@@ -1,289 +1,180 @@
-<!doctype html>
+﻿<!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>차량번호 조회 · 등록</title>
-  <!-- Tailwind CSS CDN -->
+  <meta charset="UTF-8">
+  <title>국세공무원교육원 차량조회 등록</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- SheetJS (XLSX) CDN -->
-  <script src="https://unpkg.com/xlsx@0.20.0/dist/xlsx.full.min.js"></script>
-  <style>
-    /* iOS input zoom 방지 */
-    @supports (-webkit-touch-callout: none) {
-      input, select, textarea, button { font-size: 16px; }
-    }
-  </style>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
-<body class="bg-gray-50 text-gray-900">
-  <div class="max-w-md mx-auto px-4 py-6">
-    <header class="mb-6">
-      <h1 class="text-2xl font-bold tracking-tight">차량번호 조회 · 등록</h1>
-      <p class="text-sm text-gray-600 mt-1">엑셀 업로드 · 덮어쓰기/추가 반영 · 뒷자리 4자리 검색</p>
-    </header>
+<body class="bg-gray-100 p-4">
+  <div class="max-w-xl mx-auto bg-white p-6 rounded-2xl shadow-md">
+    <h1 class="text-xl font-bold mb-4 text-center">국세공무원교육원 차량조회 등록</h1>
 
-    <!-- 업로드 카드 -->
-    <section class="bg-white rounded-2xl shadow-sm p-4 mb-5">
-      <h2 class="font-semibold mb-3">엑셀 업로드</h2>
-      <p class="text-sm text-gray-600 mb-3">컬럼: <b>이름, 소속, 전화번호, 차량번호</b> (첫 행 헤더)</p>
-      <div class="flex items-center gap-2">
-        <input id="excelFile" type="file" accept=".xlsx,.xls,.csv" class="grow file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:bg-gray-100 file:text-gray-700 file:cursor-pointer border rounded-xl p-2" />
-        <button id="btnImport" class="shrink-0 px-4 py-2 rounded-xl bg-blue-600 text-white font-medium">가져오기</button>
-      </div>
-      <p id="importMsg" class="text-sm text-gray-700 mt-3 hidden"></p>
-      <div class="flex items-center justify-between mt-3">
-        <p class="text-xs text-gray-500">현재 저장된 데이터: <span id="count">0</span>건</p>
-        <div class="flex gap-2">
-          <button id="btnExport" class="px-3 py-2 rounded-xl bg-gray-100 text-gray-800 text-sm">엑셀로 내보내기</button>
-          <button id="btnClear" class="px-3 py-2 rounded-xl bg-rose-50 text-rose-600 text-sm">전체삭제</button>
-        </div>
-      </div>
-    </section>
-
-    <!-- 검색 카드 -->
-    <section class="bg-white rounded-2xl shadow-sm p-4 mb-5">
-      <h2 class="font-semibold mb-3">차량번호 뒷자리 검색</h2>
-      <div class="flex gap-2">
-        <input id="searchLast4" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="뒷자리 4자리" class="grow border rounded-xl px-3 py-2" />
-        <button id="btnSearch" class="shrink-0 px-4 py-2 rounded-xl bg-blue-600 text-white font-medium">검색</button>
-      </div>
-      <p class="text-xs text-gray-500 mt-2">예: 1234</p>
+    <!-- 차량번호 검색 -->
+    <section class="mb-6">
+      <h2 class="text-lg font-semibold mb-2">차량번호 검색</h2>
+      <input id="searchNum" type="text" placeholder="차량번호 뒷자리 4자리" maxlength="4" 
+             class="w-full p-2 border rounded-lg mb-2">
+      <button onclick="searchCar()" class="w-full bg-blue-500 text-white py-2 rounded-lg">검색</button>
       <div id="searchResult" class="mt-4"></div>
     </section>
 
-    <!-- 등록 카드 -->
-    <section class="bg-white rounded-2xl shadow-sm p-4">
-      <h2 class="font-semibold mb-3">신규 등록</h2>
-      <form id="addForm" class="grid grid-cols-1 gap-3">
-        <div>
-          <label class="block text-sm mb-1" for="name">이름</label>
-          <input id="name" class="w-full border rounded-xl px-3 py-2" placeholder="홍길동" required />
-        </div>
-        <div>
-          <label class="block text-sm mb-1" for="dept">소속</label>
-          <input id="dept" class="w-full border rounded-xl px-3 py-2" placeholder="총무팀" required />
-        </div>
-        <div>
-          <label class="block text-sm mb-1" for="phone">전화번호</label>
-          <input id="phone" class="w-full border rounded-xl px-3 py-2" placeholder="010-1234-5678" required />
-        </div>
-        <div>
-          <label class="block text-sm mb-1" for="plate">차량번호</label>
-          <input id="plate" class="w-full border rounded-xl px-3 py-2" placeholder="12가3456" required />
-          <p class="text-xs text-gray-500 mt-1">하이픈/띄어쓰기 무관. 등록 시 자동 정규화</p>
-        </div>
-        <button class="w-full py-3 rounded-xl bg-emerald-600 text-white font-semibold">등록하기</button>
-      </form>
-      <p id="addMsg" class="text-sm mt-3 hidden"></p>
+    <!-- 관리자 로그인 -->
+    <section id="loginSection" class="mb-6">
+      <h2 class="text-lg font-semibold mb-2">관리자 로그인</h2>
+      <input id="adminId" type="text" placeholder="아이디" class="w-full p-2 border rounded-lg mb-2">
+      <input id="adminPw" type="password" placeholder="비밀번호" class="w-full p-2 border rounded-lg mb-2">
+      <button onclick="adminLogin()" class="w-full bg-gray-600 text-white py-2 rounded-lg">로그인</button>
+      <p id="loginMsg" class="text-red-500 text-sm mt-2"></p>
     </section>
 
-    <footer class="text-center text-xs text-gray-400 mt-6">© 차량번호 조회 툴</footer>
+    <!-- 신규 등록 (관리자만) -->
+    <section id="registerSection" class="mb-6 hidden">
+      <h2 class="text-lg font-semibold mb-2">신규 등록</h2>
+      <input id="name" type="text" placeholder="이름" class="w-full p-2 border rounded-lg mb-2">
+      
+      <label class="block mb-2">소속</label>
+      <select id="org" class="w-full p-2 border rounded-lg mb-2">
+        <option value="국세공무원교육원">국세공무원교육원</option>
+        <option value="국세상담센터">국세상담센터</option>
+        <option value="주류면허지원센터">주류면허지원센터</option>
+        <option value="서귀포지서">서귀포지서</option>
+        <option value="교육생">교육생</option>
+        <option value="기타">기타</option>
+      </select>
+      
+      <input id="phone" type="text" placeholder="전화번호" class="w-full p-2 border rounded-lg mb-2">
+      <input id="carNum" type="text" placeholder="차량번호" class="w-full p-2 border rounded-lg mb-2">
+      <input id="carType" type="text" placeholder="차종" class="w-full p-2 border rounded-lg mb-2">
+      
+      <button onclick="saveData()" class="w-full bg-green-500 text-white py-2 rounded-lg">등록</button>
+    </section>
+
+    <!-- 엑셀 업로드 (관리자만) -->
+    <section id="uploadSection" class="mb-6 hidden">
+      <h2 class="text-lg font-semibold mb-2">엑셀 업로드</h2>
+      <input type="file" id="excelFile" class="mb-2">
+      <button onclick="uploadExcel()" class="w-full bg-purple-500 text-white py-2 rounded-lg">업로드</button>
+    </section>
   </div>
 
-  <script>
-    // --- 유틸 ---
-    const STORAGE_KEY = 'vehicleData_v1';
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getFirestore, collection, addDoc, query, where, getDocs, setDoc, doc } 
+    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-    function normalizePlate(plate) {
-      if (!plate) return '';
-      // 숫자+한글+영문 허용, 하이픈/공백 제거, 대문자화
-      return plate
-        .toString()
-        .trim()
-        .replace(/\s|-/g, '')
-        .toUpperCase();
+  // 🔹 Firebase 설정 (여기에 본인 Firebase 설정값 넣으세요)
+  const firebaseConfig = {
+    apiKey: "AIzaSyB-yJWX6qRnkWpHWLqyWyr6NFw7kQDPStA",
+    authDomain: "car-check-ae332.firebaseapp.com",
+    projectId: "car-check-ae332",
+    storageBucket: "car-check-ae332.firebasestorage.app",
+    messagingSenderId: "571761357854",
+    appId: "1:571761357854:web:f66390904bcbc00c3faa0f",
+    measurementId: "G-ME6S29Z2CJ"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  // ✅ 차량 검색
+  window.searchCar = async function() {
+    const num = document.getElementById('searchNum').value.trim();
+    const resultDiv = document.getElementById('searchResult');
+    resultDiv.innerHTML = "";
+
+    if (num.length !== 4) {
+      resultDiv.innerHTML = "<p class='text-red-500'>차량번호 4자리를 입력하세요.</p>";
+      return;
     }
 
-    function last4(plate) {
-      const p = normalizePlate(plate);
-      // 끝에서 숫자 4자리만 추출 (숫자 아닌 문자는 무시)
-      const digits = p.replace(/\D/g, '');
-      return digits.slice(-4);
+    const q = query(collection(db, "cars"), where("carNum", ">=", num), where("carNum", "<=", num + "\uf8ff"));
+    const snap = await getDocs(q);
+
+    if (snap.empty) {
+      resultDiv.innerHTML = "<p class='text-red-500'>해당 차량이 없습니다.</p>";
+    } else {
+      snap.forEach(doc => {
+        const d = doc.data();
+        resultDiv.innerHTML += `
+          <div class="border p-2 rounded-lg mb-2 bg-gray-50">
+            <p><b>이름:</b> ${d.name}</p>
+            <p><b>소속:</b> ${d.org}</p>
+            <p><b>전화번호:</b> ${d.phone}</p>
+            <p><b>차량번호:</b> ${d.carNum}</p>
+            <p><b>차종:</b> ${d.carType}</p>
+          </div>`;
+      });
+    }
+  }
+
+  // ✅ 신규 등록
+  window.saveData = async function() {
+    const name = document.getElementById('name').value;
+    const org = document.getElementById('org').value;
+    const phone = document.getElementById('phone').value;
+    const carNum = document.getElementById('carNum').value;
+    const carType = document.getElementById('carType').value;
+
+    if (!name || !org || !phone || !carNum || !carType) {
+      alert("모든 항목을 입력하세요.");
+      return;
     }
 
-    function loadData() {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      try { return raw ? JSON.parse(raw) : []; } catch { return []; }
-    }
+    await setDoc(doc(db, "cars", carNum), { name, org, phone, carNum, carType });
+    alert("등록 완료!");
+  }
 
-    function saveData(data) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-      updateCount();
-    }
+  // ✅ 엑셀 업로드
+  window.uploadExcel = async function() {
+    const file = document.getElementById('excelFile').files[0];
+    if (!file) { alert("엑셀 파일을 선택하세요."); return; }
 
-    function updateCount() {
-      const data = loadData();
-      document.getElementById('count').textContent = data.length.toString();
-    }
+    const reader = new FileReader();
+    reader.onload = async function(e) {
+      const data = new Uint8Array(e.target.result);
+      const wb = XLSX.read(data, {type:'array'});
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet);
 
-    function showMsg(el, text, type='info') {
-      el.classList.remove('hidden');
-      el.textContent = text;
-      el.className = '';
-      let base = 'text-sm mt-3';
-      if (type === 'success') el.className = base + ' text-emerald-700';
-      else if (type === 'error') el.className = base + ' text-rose-700';
-      else el.className = base + ' text-gray-700';
-    }
-
-    function toRecord(r) {
-      return {
-        이름: (r['이름'] ?? r['name'] ?? '').toString().trim(),
-        소속: (r['소속'] ?? r['dept'] ?? r['부서'] ?? '').toString().trim(),
-        전화번호: (r['전화번호'] ?? r['phone'] ?? '').toString().trim(),
-        차량번호: normalizePlate(r['차량번호'] ?? r['plate'] ?? r['차량 번호'] ?? r['car'] ?? ''),
-      }
-    }
-
-    function validateRecord(rec) {
-      if (!rec.이름 || !rec.소속 || !rec.전화번호 || !rec.차량번호) return false;
-      return true;
-    }
-
-    function upsert(data, rec) {
-      const idx = data.findIndex(d => normalizePlate(d.차량번호) === rec.차량번호);
-      if (idx >= 0) {
-        data[idx] = rec; // 덮어쓰기
-        return { action: 'updated' };
-      } else {
-        data.push(rec);
-        return { action: 'inserted' };
-      }
-    }
-
-    function renderCards(list, container) {
-      container.innerHTML = '';
-      if (!list || list.length === 0) {
-        container.innerHTML = '<div class="text-center text-gray-500">없음</div>';
-        return;
-      }
-      for (const item of list) {
-        const card = document.createElement('div');
-        card.className = 'rounded-2xl border p-3 mb-3';
-        card.innerHTML = `
-          <div class="flex items-center justify-between">
-            <div class="font-semibold">${item.이름} <span class="text-xs text-gray-500">(${item.소속})</span></div>
-            <div class="text-sm text-gray-700">${item.전화번호}</div>
-          </div>
-          <div class="mt-2 text-lg tracking-wide">🚗 ${item.차량번호}</div>
-        `;
-        container.appendChild(card);
-      }
-    }
-
-    // --- 초기화 ---
-    updateCount();
-
-    // --- 엑셀 가져오기 ---
-    document.getElementById('btnImport').addEventListener('click', () => {
-      const fileInput = document.getElementById('excelFile');
-      const msg = document.getElementById('importMsg');
-      const file = fileInput.files?.[0];
-      if (!file) return showMsg(msg, '파일을 선택해주세요.', 'error');
-
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        try {
-          const data = new Uint8Array(e.target.result);
-          const wb = XLSX.read(data, { type: 'array' });
-          const ws = wb.Sheets[wb.SheetNames[0]];
-          const json = XLSX.utils.sheet_to_json(ws, { defval: '' });
-
-          const store = loadData();
-          let inserted = 0, updated = 0, skipped = 0;
-
-          for (const row of json) {
-            const rec = toRecord(row);
-            if (!validateRecord(rec)) { skipped++; continue; }
-            const res = upsert(store, rec);
-            if (res.action === 'inserted') inserted++; else updated++;
-          }
-          saveData(store);
-          showMsg(msg, `가져오기 완료: 추가 ${inserted}건 · 수정 ${updated}건 · 건너뜀 ${skipped}건`, 'success');
-          fileInput.value = '';
-        } catch (err) {
-          console.error(err);
-          showMsg(msg, '파일을 읽는 중 오류가 발생했습니다.', 'error');
+      for (let row of rows) {
+        if (row.이름 && row.소속 && row.전화번호 && row.차량번호 && row.차종) {
+          await setDoc(doc(db, "cars", row.차량번호), {
+            name: row.이름, org: row.소속, phone: row.전화번호, carNum: row.차량번호, carType: row.차종
+          });
         }
-      };
-      reader.readAsArrayBuffer(file);
-    });
-
-    // --- 엑셀로 내보내기 ---
-    document.getElementById('btnExport').addEventListener('click', () => {
-      const data = loadData();
-      const ws = XLSX.utils.json_to_sheet(data);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, '차량데이터');
-      XLSX.writeFile(wb, 'vehicle_data.xlsx');
-    });
-
-    // --- 전체 삭제 ---
-    document.getElementById('btnClear').addEventListener('click', () => {
-      if (!confirm('저장된 모든 데이터를 삭제할까요?')) return;
-      localStorage.removeItem(STORAGE_KEY);
-      updateCount();
-      document.getElementById('searchResult').innerHTML = '';
-      showMsg(document.getElementById('importMsg'), '데이터를 삭제했습니다.', 'success');
-    });
-
-    // --- 검색 ---
-    function doSearch() {
-      const input = document.getElementById('searchLast4');
-      const val = input.value.replace(/\D/g, '');
-      if (val.length !== 4) {
-        renderCards([], document.getElementById('searchResult'));
-        return;
       }
-      const data = loadData();
-      const found = data.filter(item => last4(item.차량번호) === val);
-      renderCards(found, document.getElementById('searchResult'));
+      alert("엑셀 업로드 완료!");
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  // ✅ 관리자 로그인
+  window.adminLogin = function() {
+    const id = document.getElementById('adminId').value;
+    const pw = document.getElementById('adminPw').value;
+    const msg = document.getElementById('loginMsg');
+
+    if (id === "admin" && pw === "rydbrdnjs1!") {
+      localStorage.setItem("adminLoggedIn", "true");
+      document.getElementById("registerSection").classList.remove("hidden");
+      document.getElementById("uploadSection").classList.remove("hidden");
+      document.getElementById("loginSection").classList.add("hidden");
+    } else {
+      msg.innerText = "아이디 또는 비밀번호가 올바르지 않습니다.";
     }
+  }
 
-    document.getElementById('btnSearch').addEventListener('click', doSearch);
-    document.getElementById('searchLast4').addEventListener('input', (e) => {
-      // 숫자만 허용 & 4자리 제한
-      e.target.value = e.target.value.replace(/\D/g, '').slice(0,4);
-      // 입력하면서 즉시 검색
-      doSearch();
-    });
-
-    // --- 등록 ---
-    document.getElementById('addForm').addEventListener('submit', (e) => {
-      e.preventDefault();
-      const msg = document.getElementById('addMsg');
-      const name = document.getElementById('name').value.trim();
-      const dept = document.getElementById('dept').value.trim();
-      const phone = document.getElementById('phone').value.trim();
-      const plate = normalizePlate(document.getElementById('plate').value);
-
-      if (!name || !dept || !phone || !plate) {
-        return showMsg(msg, '모든 항목을 입력해주세요.', 'error');
-      }
-
-      const rec = { 이름: name, 소속: dept, 전화번호: phone, 차량번호: plate };
-      const store = loadData();
-      const existsIdx = store.findIndex(d => normalizePlate(d.차량번호) === plate);
-
-      if (existsIdx >= 0) {
-        if (!confirm('동일 차량번호가 있어 기존 데이터를 덮어쓸까요?')) {
-          return showMsg(msg, '등록을 취소했습니다.', 'info');
-        }
-        store[existsIdx] = rec;
-        saveData(store);
-        showMsg(msg, '기존 데이터를 덮어썼습니다.', 'success');
-      } else {
-        store.push(rec);
-        saveData(store);
-        showMsg(msg, '등록되었습니다.', 'success');
-      }
-
-      // 폼 리셋
-      e.target.reset();
-      // 방금 등록한 번호로 검색결과 업데이트
-      document.getElementById('searchLast4').value = last4(plate);
-      doSearch();
-    });
-  </script>
+  // ✅ 로그인 유지
+  window.onload = function() {
+    if (localStorage.getItem("adminLoggedIn") === "true") {
+      document.getElementById("registerSection").classList.remove("hidden");
+      document.getElementById("uploadSection").classList.remove("hidden");
+      document.getElementById("loginSection").classList.add("hidden");
+    }
+  }
+</script>
 </body>
 </html>
