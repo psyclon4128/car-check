@@ -139,7 +139,12 @@
           <div class="border p-3 rounded-lg mb-3 bg-gray-50 text-lg">
             <p><b>이름:</b> ${d.name || ''}</p>
             <p><b>소속:</b> ${d.org || ''}</p>
-            <p><b>전화번호:</b> ${d.phone || ''}</p>
+            <p><b>전화번호:</b> 
+              <a href="tel:${(d.phone || '').replace(/[^0-9]/g,'')}" 
+                 class="text-blue-600 underline">
+                 ${d.phone || ''}
+              </a>
+            </p>
             <p><b>차량번호:</b> ${d.carNum || ''}</p>
             <p><b>차종:</b> ${d.carType || ''}</p>
           </div>`;
