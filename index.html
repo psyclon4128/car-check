@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
@@ -9,7 +9,6 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <style>
-    /* 모달 애니메이션 */
     .fade-in { animation: fadeIn 0.3s ease-in-out; }
     @keyframes fadeIn {
       from { opacity: 0; }
@@ -52,7 +51,8 @@
         <option value="국세상담센터">국세상담센터</option>
         <option value="주류면허지원센터">주류면허지원센터</option>
         <option value="서귀포지서">서귀포지서</option>
-        <option value="교육생">교육생</option>
+        <option value="재직교육생">재직교육생</option>
+        <option value="신규교육생">신규교육생</option>
         <option value="기타">기타</option>
       </select>
       
@@ -80,7 +80,6 @@
 
   </div>
 
-  <!-- 하단 제작자 표시 -->
   <div class="text-right w-full p-2 text-sm text-gray-500 mt-auto">
     made by Banseok Kim
   </div>
@@ -88,7 +87,6 @@
   <!-- 로그인 모달 -->
   <div id="loginModal" class="hidden fixed inset-0 bg-black bg-opacity-40 fade-in flex items-center justify-center z-50">
     <div class="bg-white rounded-lg shadow-lg p-6 w-80 relative">
-      <!-- 닫기 버튼 -->
       <button onclick="closeLoginModal()" class="absolute top-2 right-2 text-gray-500 text-lg">&times;</button>
       <h2 class="text-lg font-bold mb-4 text-center">로그인</h2>
       <input id="loginId" type="text" placeholder="아이디" class="w-full p-2 border rounded-lg mb-3">
@@ -119,7 +117,9 @@
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
 
-  // === 차량 검색 ===
+  let currentRole = null;
+
+  // 차량 검색
   window.searchCar = async function() {
     const num = document.getElementById('searchNum').value.trim();
     const resultDiv = document.getElementById('searchResult');
@@ -139,12 +139,7 @@
           <div class="border p-3 rounded-lg mb-3 bg-gray-50 text-lg">
             <p><b>이름:</b> ${d.name || ''}</p>
             <p><b>소속:</b> ${d.org || ''}</p>
-            <p><b>전화번호:</b> 
-              <a href="tel:${(d.phone || '').replace(/[^0-9]/g,'')}" 
-                 class="text-blue-600 underline">
-                 ${d.phone || ''}
-              </a>
-            </p>
+            ${currentRole === 'admin' ? `<p><b>전화번호:</b> <a href="tel:${(d.phone || '').replace(/[^0-9]/g,'')}" class="text-blue-600 underline">${d.phone || ''}</a></p>` : ''}
             <p><b>차량번호:</b> ${d.carNum || ''}</p>
             <p><b>차종:</b> ${d.carType || ''}</p>
           </div>`;
@@ -154,7 +149,7 @@
     if (!found) resultDiv.innerHTML = "<p class='text-red-500 text-lg'>등록된 차량이 없습니다.</p>";
   }
 
-  // === 신규 등록 (관리자만) ===
+  // 신규 등록
   window.saveData = async function() {
     const name = document.getElementById('name').value.trim();
     const org = document.getElementById('org').value;
@@ -171,70 +166,7 @@
     alert("등록 완료!");
   }
 
-  // === 엑셀 업로드 (관리자만) ===
-  window.uploadExcel = async function() {
-    const file = document.getElementById('excelFile').files[0];
-    if (!file) { alert("엑셀 파일을 선택하세요."); return; }
-
-    const reader = new FileReader();
-    reader.onload = async function(e) {
-      const data = new Uint8Array(e.target.result);
-      const wb = XLSX.read(data, {type:'array'});
-      const sheet = wb.Sheets[wb.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(sheet);
-
-      for (let row of rows) {
-        if (row.차량번호) {
-          await setDoc(doc(db, "cars", row.차량번호), {
-            name: row.이름||"", org: row.소속||"", phone: row.전화번호||"", carNum: row.차량번호, carType: row.차종||""
-          });
-        }
-      }
-      alert("엑셀 업로드 완료!");
-    };
-    reader.readAsArrayBuffer(file);
-  }
-
-  // === 현재 데이터 다운로드 (관리자만) ===
-  window.exportCurrentData = async function() {
-    const snap = await getDocs(collection(db, "cars"));
-    const header = ["이름", "소속", "전화번호", "차량번호", "차종"];
-    const rows = [];
-
-    snap.forEach(docSnap => {
-      const d = docSnap.data();
-      rows.push([d.name||"", d.org||"", d.phone||"", d.carNum||"", d.carType||""]);
-    });
-
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
-    XLSX.utils.book_append_sheet(wb, ws, "차량데이터");
-
-    XLSX.writeFile(wb, "차량데이터.xlsx");
-  }
-
-  // === 데이터 전체 삭제 (관리자만) ===
-  window.deleteAllData = async function() {
-    if (!confirm("실행하시겠습니까?")) return;
-    const snap = await getDocs(collection(db, "cars"));
-    for (let docSnap of snap.docs) {
-      await deleteDoc(doc(db, "cars", docSnap.id));
-    }
-    alert("모든 차량 데이터가 삭제되었습니다!");
-  }
-
-  // === 로그인 모달 열기/닫기 ===
-  window.openLoginModal = function() {
-    document.getElementById("loginModal").classList.remove("hidden");
-  }
-  window.closeLoginModal = function() {
-    document.getElementById("loginModal").classList.add("hidden");
-    document.getElementById("loginMsg").innerText = "";
-    document.getElementById("loginId").value = "";
-    document.getElementById("loginPw").value = "";
-  }
-
-  // === 로그인 체크 ===
+  // 로그인/로그아웃 처리
   window.checkLogin = function() {
     const id = document.getElementById('loginId').value;
     const pw = document.getElementById('loginPw').value;
@@ -242,11 +174,13 @@
 
     if (id === "admin" && pw === "rydbrdnjs1!") {
       localStorage.setItem("role", "admin");
+      currentRole = 'admin';
       applyRole();
       closeLoginModal();
       alert("관리자 로그인 성공!");
     } else if (id === "user" && pw === "12345") {
       localStorage.setItem("role", "user");
+      currentRole = 'user';
       applyRole();
       closeLoginModal();
       alert("사용자 로그인 성공!");
@@ -255,24 +189,22 @@
     }
   }
 
-  // === 로그아웃 ===
   window.logout = function() {
     localStorage.removeItem("role");
+    currentRole = null;
     applyRole();
     alert("로그아웃 되었습니다.");
   }
 
-  // === 권한 적용 ===
   function applyRole() {
     const role = localStorage.getItem("role");
+    currentRole = role;
 
     document.getElementById("searchBtn").disabled = true;
     document.getElementById("searchBtn").innerText = "검색 (로그인 필요)";
-
     document.getElementById("registerSection").classList.add("hidden");
     document.getElementById("uploadSection").classList.add("hidden");
     document.getElementById("deleteSection").classList.add("hidden");
-
     document.getElementById("loginBtn").classList.remove("hidden");
     document.getElementById("logoutBtn").classList.add("hidden");
 
@@ -291,6 +223,16 @@
       document.getElementById("loginBtn").classList.add("hidden");
       document.getElementById("logoutBtn").classList.remove("hidden");
     }
+  }
+
+  window.openLoginModal = function() {
+    document.getElementById("loginModal").classList.remove("hidden");
+  }
+  window.closeLoginModal = function() {
+    document.getElementById("loginModal").classList.add("hidden");
+    document.getElementById("loginMsg").innerText = "";
+    document.getElementById("loginId").value = "";
+    document.getElementById("loginPw").value = "";
   }
 
   window.onload = applyRole;
