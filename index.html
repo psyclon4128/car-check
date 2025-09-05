@@ -21,7 +21,7 @@
   <div class="w-full max-w-screen-sm mx-auto bg-white p-6 rounded-xl shadow-md flex-1 relative">
     <!-- 제목 + 로그인 버튼 -->
     <div class="mb-4 flex flex-col items-center relative">
-      <img src="국세공무원교육원.png" alt="국세공무원교육원" class="w-40 max-w-full mb-1">
+      <a href="https://car-check.onrender.com/" target="_blank"><img src="국세공무원교육원.png" alt="국세공무원교육원" class="w-40 max-w-full mb-1"></a>
       <h1 class="text-xl font-bold text-center">차량조회·등록</h1>
       <div class="absolute top-0 right-0 text-sm">
         <button id="loginBtn" onclick="openLoginModal()" class="text-blue-600 underline">로그인</button>
@@ -85,6 +85,14 @@
         <summary class="cursor-pointer text-lg font-semibold bg-gray-200 p-3 rounded-lg">데이터 일괄삭제</summary>
         <div class="mt-3">
           <button onclick="deleteAllData()" class="w-full bg-red-500 text-white py-3 rounded-lg text-lg">전체 삭제 실행</button>
+        </div>
+      </details>
+
+      <details class="accordion">
+        <summary class="cursor-pointer text-lg font-semibold bg-gray-200 p-3 rounded-lg">선택 삭제</summary>
+        <div class="mt-3">
+          <div id="selectDeleteList" class="mb-3 space-y-2 text-lg"></div>
+          <button onclick="deleteSelectedData()" class="w-full bg-red-400 text-white py-3 rounded-lg text-lg">선택 삭제 실행</button>
         </div>
       </details>
     </section>
@@ -297,6 +305,42 @@
   window.closeLoginModal=function(){document.getElementById("loginModal").classList.add("hidden");document.getElementById("loginMsg").innerText="";document.getElementById("loginId").value="";document.getElementById("loginPw").value="";}
 
   window.onload=applyRole;
+  // 선택 삭제 리스트 불러오기
+  async function loadSelectDeleteList(){
+    const listDiv=document.getElementById("selectDeleteList");
+    if(!listDiv) return;
+    listDiv.innerHTML="";
+    const snap=await getDocs(collection(db,"cars"));
+    snap.forEach(docSnap=>{
+      const d=docSnap.data();
+      listDiv.innerHTML+=`
+        <label class="flex items-center space-x-2">
+          <input type="checkbox" value="${docSnap.id}" class="deleteCheckbox">
+          <span>${decrypt(d.name)} - ${decrypt(d.carNum)}</span>
+        </label>`;
+    });
+  }
+
+  // 선택 삭제 실행
+  window.deleteSelectedData=async function(){
+    const checks=document.querySelectorAll(".deleteCheckbox:checked");
+    if(checks.length===0){alert("삭제할 데이터를 선택하세요.");return;}
+    if(confirm("선택한 데이터를 삭제하시겠습니까?")){
+      for(let c of checks){
+        await deleteDoc(doc(db,"cars",c.value));
+      }
+      alert("선택된 데이터가 삭제되었습니다.");
+      loadSelectDeleteList();
+    }
+  }
+
+  // admin 로그인 시 선택삭제 목록 불러오기
+  const oldApplyRole = applyRole;
+  applyRole = function(){
+    oldApplyRole();
+    if(currentRole==="admin"){ loadSelectDeleteList(); }
+  }
+
 </script>
 </body>
 </html>
