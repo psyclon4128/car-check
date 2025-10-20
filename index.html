@@ -135,7 +135,8 @@
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
 
-  const SECRET_KEY = "MyStrongSecretKey123!";
+  const SECRET_KEY = "MyStrongSecretKey123!"; // 암호화 키 단일화
+
   function encrypt(text){ return CryptoJS.AES.encrypt(text, SECRET_KEY).toString(); }
   function decrypt(cipher){ try{return CryptoJS.AES.decrypt(cipher, SECRET_KEY).toString(CryptoJS.enc.Utf8);}catch{return cipher;} }
 
@@ -224,7 +225,7 @@
     alert("등록 완료!");
   }
 
-  // === 엑셀 업로드 수정 버전 ===
+  // === 엑셀 업로드 (암호화 키 단일화 버전) ===
   window.uploadExcel = async () => {
     const fileInput = document.getElementById("excelFile");
     const file = fileInput.files[0];
@@ -258,12 +259,12 @@
           if (!carNum) continue; // 차량번호 없는 행 무시
 
           const encrypted = {
-            name: CryptoJS.AES.encrypt(name, "MySecretKey2025!").toString(),
-            org: CryptoJS.AES.encrypt(org, "MySecretKey2025!").toString(),
-            phone: CryptoJS.AES.encrypt(phone, "MySecretKey2025!").toString(),
-            carNum: CryptoJS.AES.encrypt(carNum, "MySecretKey2025!").toString(),
-            carType: CryptoJS.AES.encrypt(carType, "MySecretKey2025!").toString(),
-            expireDate: CryptoJS.AES.encrypt(expire, "MySecretKey2025!").toString()
+            name: CryptoJS.AES.encrypt(name, SECRET_KEY).toString(),
+            org: CryptoJS.AES.encrypt(org, SECRET_KEY).toString(),
+            phone: CryptoJS.AES.encrypt(phone, SECRET_KEY).toString(),
+            carNum: CryptoJS.AES.encrypt(carNum, SECRET_KEY).toString(),
+            carType: CryptoJS.AES.encrypt(carType, SECRET_KEY).toString(),
+            expireDate: CryptoJS.AES.encrypt(expire, SECRET_KEY).toString()
           };
 
           await setDoc(doc(db, "cars", carNum), encrypted);
