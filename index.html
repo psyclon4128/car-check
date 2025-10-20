@@ -1,8 +1,8 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>국세공무원교육원 차량조회·등록</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js"></script>
@@ -10,43 +10,43 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
   <style>
-    body { -webkit-font-smoothing: antialiased; }
+    .fade-in { animation: fadeIn 0.3s ease-in-out; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    details[open] summary ~ * { animation: sweep .3s ease-in-out; }
+    @keyframes sweep { from {opacity: 0; margin-top: -10px;} to {opacity: 1; margin-top: 0;} }
   </style>
 </head>
-<body class="bg-gray-100 p-4 min-h-screen flex flex-col">
-  <div class="max-w-screen-sm mx-auto bg-white rounded-xl shadow-md p-4 sm:p-6 flex-1">
+<body class="bg-gray-100 p-4 overflow-x-hidden relative min-h-screen flex flex-col">
 
-    <div class="flex items-start justify-between mb-4">
-      <div class="flex items-center">
-        <a href="https://car-check.onrender.com/" target="_blank">
-          <img src="국세공무원교육원.png" alt="국세공무원교육원" class="w-16 h-auto mr-3">
-        </a>
-        <div>
-          <h1 class="text-lg sm:text-2xl font-bold leading-tight">차량조회·등록</h1>
-        </div>
-      </div>
-      <div>
-        <button id="loginBtn" onclick="openLoginModal()" class="text-sm text-blue-600 underline">로그인</button>
-        <button id="logoutBtn" onclick="logout()" class="hidden text-sm text-red-600 underline">로그아웃</button>
+  <div class="w-full max-w-screen-sm mx-auto bg-white p-6 rounded-xl shadow-md flex-1 relative">
+    <!-- 제목 + 로그인 버튼 -->
+    <div class="mb-4 flex flex-col items-center relative">
+      <a href="https://car-check.onrender.com/" target="_blank"><img src="국세공무원교육원.png" alt="국세공무원교육원" class="w-40 max-w-full mb-1"></a>
+      <h1 class="text-xl font-bold text-center">차량조회·등록</h1>
+      <div class="absolute top-0 right-0 text-sm">
+        <button id="loginBtn" onclick="openLoginModal()" class="text-blue-600 underline">로그인</button>
+        <button id="logoutBtn" onclick="logout()" class="hidden text-red-600 underline">로그아웃</button>
       </div>
     </div>
 
-    <section class="mb-4">
-      <label class="block text-sm font-medium mb-2">차량번호 검색</label>
-      <input id="searchNum" type="text" maxlength="4" placeholder="차량번호 뒷자리 4자리"
-             class="w-full p-3 border rounded-lg mb-3 text-base">
-      <button id="searchBtn" onclick="searchCar()" class="w-full bg-blue-600 text-white py-3 rounded-lg text-base" disabled>검색 (로그인 필요)</button>
-      <div id="searchResult" class="mt-4 text-sm"></div>
+    <!-- 차량번호 검색 -->
+    <section class="mb-6">
+      <h2 class="text-lg font-semibold mb-2">차량번호 검색</h2>
+      <input id="searchNum" type="text" placeholder="차량번호 뒷자리 4자리" maxlength="4" 
+             class="w-full p-3 border rounded-lg mb-3 text-lg">
+      <button id="searchBtn" onclick="searchCar()" 
+              class="w-full bg-blue-500 text-white py-3 rounded-lg text-lg" disabled>검색 (로그인 필요)</button>
+      <div id="searchResult" class="mt-4 text-lg"></div>
     </section>
 
-    <section id="adminMenu" class="hidden space-y-3">
-
-      <details>
-        <summary class="cursor-pointer text-base font-semibold bg-gray-100 p-3 rounded-lg">신규 등록</summary>
+    <!-- 관리자 메뉴 -->
+    <section id="adminMenu" class="hidden space-y-4">
+      <details class="accordion">
+        <summary class="cursor-pointer text-lg font-semibold bg-gray-200 p-3 rounded-lg">신규 등록</summary>
         <div class="mt-3">
-          <input id="name" placeholder="이름" class="w-full p-2 border rounded-lg mb-2">
-          <label class="block mb-1 text-sm">소속</label>
-          <select id="org" class="w-full p-2 border rounded-lg mb-2 text-base">
+          <input id="name" type="text" placeholder="이름" class="w-full p-3 border rounded-lg mb-3 text-lg">
+          <label class="block mb-2 text-lg">소속</label>
+          <select id="org" class="w-full p-3 border rounded-lg mb-3 text-lg">
             <option value="국세공무원교육원">국세공무원교육원</option>
             <option value="국세상담센터">국세상담센터</option>
             <option value="주류면허지원센터">주류면허지원센터</option>
@@ -55,96 +55,176 @@
             <option value="신규교육생">신규교육생</option>
             <option value="기타">기타</option>
           </select>
-          <input id="phone" placeholder="전화번호 (010-1234-5678)" class="w-full p-2 border rounded-lg mb-2">
-          <input id="carNum" placeholder="차량번호 (12가3456)" class="w-full p-2 border rounded-lg mb-2">
-          <input id="carType" placeholder="차종" class="w-full p-2 border rounded-lg mb-2">
-          <label class="block mb-1 text-sm">출입기간</label>
-          <select id="expireOption" class="w-full p-2 border rounded-lg mb-2" onchange="toggleExpireDate()">
+          <input id="phone" type="text" placeholder="전화번호" class="w-full p-3 border rounded-lg mb-3 text-lg">
+          <input id="carNum" type="text" placeholder="차량번호" class="w-full p-3 border rounded-lg mb-3 text-lg">
+          <input id="carType" type="text" placeholder="차종" class="w-full p-3 border rounded-lg mb-3 text-lg">
+          
+          <label class="block mb-2 text-lg">출입기간</label>
+          <select id="expireOption" class="w-full p-3 border rounded-lg mb-3 text-lg" onchange="toggleExpireDate()">
             <option value="always">항상</option>
             <option value="date">날짜 선택</option>
           </select>
-          <input id="expireDate" type="date" class="w-full p-2 border rounded-lg mb-3 hidden">
-          <button onclick="saveData()" class="w-full bg-green-600 text-white py-2 rounded-lg text-base">등록</button>
+          <input id="expireDate" type="date" class="w-full p-3 border rounded-lg mb-3 text-lg hidden">
+
+          <button onclick="saveData()" class="w-full bg-green-500 text-white py-3 rounded-lg text-lg">등록</button>
         </div>
       </details>
 
-      <details>
-        <summary class="cursor-pointer text-base font-semibold bg-gray-100 p-3 rounded-lg">엑셀 업로드</summary>
+      <details class="accordion">
+        <summary class="cursor-pointer text-lg font-semibold bg-gray-200 p-3 rounded-lg">엑셀 업로드/다운로드</summary>
         <div class="mt-3">
-          <input type="file" id="excelFile" class="w-full mb-2 text-sm">
-          <button onclick="uploadExcel()" class="w-full bg-purple-600 text-white py-2 rounded-lg text-sm">엑셀 업로드 실행</button>
+          <input type="file" id="excelFile" class="w-full mb-3 text-lg">
+          <div class="flex flex-col sm:flex-row gap-3">
+            <button onclick="uploadExcel()" class="flex-1 bg-purple-500 text-white py-3 rounded-lg text-lg">업로드</button>
+            <button onclick="exportCurrentData()" class="flex-1 bg-gray-500 text-white py-3 rounded-lg text-lg">현재 데이터 다운로드</button>
+          </div>
         </div>
       </details>
 
-    </section>
+      <details class="accordion">
+        <summary class="cursor-pointer text-lg font-semibold bg-gray-200 p-3 rounded-lg">데이터 일괄삭제</summary>
+        <div class="mt-3">
+          <button onclick="deleteAllData()" class="w-full bg-red-500 text-white py-3 rounded-lg text-lg">전체 삭제 실행</button>
+        </div>
+      </details>
 
+      <details class="accordion">
+        <summary class="cursor-pointer text-lg font-semibold bg-gray-200 p-3 rounded-lg">선택 삭제</summary>
+        <div class="mt-3">
+          <div id="selectDeleteList" class="mb-3 space-y-2 text-lg"></div>
+          <button onclick="deleteSelectedData()" class="w-full bg-red-400 text-white py-3 rounded-lg text-lg">선택 삭제 실행</button>
+        </div>
+      </details>
+    </section>
   </div>
 
-  <div class="text-right w-full p-2 text-xs text-gray-500 mt-auto">made by Banseok Kim</div>
+  <div class="text-right w-full p-2 text-sm text-gray-500 mt-auto">
+    made by Banseok Kim
+  </div>
 
-  <div id="loginModal" class="hidden fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-    <div class="bg-white rounded-lg shadow-lg p-4 w-11/12 max-w-sm relative">
-      <button onclick="closeLoginModal()" class="absolute top-2 right-3 text-gray-500 text-xl">&times;</button>
-      <h2 class="text-lg font-bold mb-3 text-center">로그인</h2>
-      <input id="loginId" type="text" placeholder="아이디 (admin 또는 user)" class="w-full p-2 border rounded-lg mb-2">
-      <input id="loginPw" type="password" placeholder="비밀번호" class="w-full p-2 border rounded-lg mb-2">
-      <div class="flex gap-2">
+  <!-- 로그인 모달 -->
+  <div id="loginModal" class="hidden fixed inset-0 bg-black bg-opacity-40 fade-in flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-lg p-6 w-80 relative">
+      <button onclick="closeLoginModal()" class="absolute top-2 right-2 text-gray-500 text-lg">&times;</button>
+      <h2 class="text-lg font-bold mb-4 text-center">로그인</h2>
+      <input id="loginId" type="text" placeholder="아이디" class="w-full p-2 border rounded-lg mb-3">
+      <input id="loginPw" type="password" placeholder="비밀번호" class="w-full p-2 border rounded-lg mb-3">
+      <div class="flex justify-between gap-2">
         <button onclick="checkLogin()" class="flex-1 bg-blue-600 text-white py-2 rounded-lg">로그인</button>
-        <button onclick="closeLoginModal()" class="flex-1 bg-gray-300 text-black py-2 rounded-lg">취소</button>
+        <button onclick="closeLoginModal()" class="flex-1 bg-gray-400 text-white py-2 rounded-lg">취소</button>
       </div>
       <p id="loginMsg" class="text-red-500 text-sm mt-2 text-center"></p>
     </div>
   </div>
 
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-    import { getFirestore, collection, doc, setDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getFirestore, collection, doc, getDocs, setDoc, deleteDoc } 
+    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-    const app = initializeApp({
-      apiKey: "AIzaSyB-yJWX6qRnkWpHWLqyWyr6NFw7kQDPStA",
-      authDomain: "car-check-ae332.firebaseapp.com",
-      projectId: "car-check-ae332",
-    });
+  const firebaseConfig = {
+    apiKey: "AIzaSyB-yJWX6qRnkWpHWLqyWyr6NFw7kQDPStA",
+    authDomain: "car-check-ae332.firebaseapp.com",
+    projectId: "car-check-ae332",
+    storageBucket: "car-check-ae332.firebasestorage.app",
+    messagingSenderId: "571761357854",
+    appId: "1:571761357854:web:f66390904bcbc00c3faa0f",
+    measurementId: "G-ME6S29Z2CJ"
+  };
 
-    const db = getFirestore(app);
-    const SECRET = "MySecretKey2025!";
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
 
-    const enc = (t) => CryptoJS.AES.encrypt(String(t || ''), SECRET).toString();
-    const dec = (t) => { try { return CryptoJS.AES.decrypt(t, SECRET).toString(CryptoJS.enc.Utf8); } catch { return t; } };
+  const SECRET_KEY = "MyStrongSecretKey123!";
+  function encrypt(text){ return CryptoJS.AES.encrypt(text, SECRET_KEY).toString(); }
+  function decrypt(cipher){ try{return CryptoJS.AES.decrypt(cipher, SECRET_KEY).toString(CryptoJS.enc.Utf8);}catch{return cipher;} }
 
-    let currentRole = null;
+  let currentRole = null;
 
-    window.checkLogin = () => {
-      const id = document.getElementById("loginId").value.trim();
-      const pw = document.getElementById("loginPw").value.trim();
-      if (id === "admin" && pw === "rydbrdnjs1!") {
-        currentRole = "admin";
-      } else if (id === "user" && pw === "12345") {
-        currentRole = "user";
-      } else {
-        document.getElementById("loginMsg").innerText = "로그인 실패: 잘못된 아이디 또는 비밀번호입니다.";
-        return;
-      }
-      applyRole();
-      closeLoginModal();
-      alert("로그인 성공!");
-    };
+  window.toggleExpireDate = function(){
+    const option = document.getElementById("expireOption").value;
+    const dateInput = document.getElementById("expireDate");
+    if(option === "date") dateInput.classList.remove("hidden");
+    else dateInput.classList.add("hidden");
+  }
 
-    window.logout = () => {
-      currentRole = null;
-      applyRole();
-      alert("로그아웃 되었습니다.");
-    };
-
-    function applyRole() {
-      document.getElementById("searchBtn").disabled = !currentRole;
-      document.getElementById("adminMenu").classList.toggle("hidden", currentRole !== "admin");
-      document.getElementById("loginBtn").classList.toggle("hidden", !!currentRole);
-      document.getElementById("logoutBtn").classList.toggle("hidden", !currentRole);
-      document.getElementById("searchBtn").innerText = currentRole ? "검색" : "검색 (로그인 필요)";
+  // 차량 검색
+  window.searchCar = async function() {
+    const num = document.getElementById('searchNum').value.trim();
+    const resultDiv = document.getElementById('searchResult');
+    resultDiv.innerHTML = "";
+    if (num.length !== 4) {
+      resultDiv.innerHTML = "<p class='text-red-500'>차량번호 4자리를 입력하세요.</p>";
+      return;
     }
 
-    // ✅ 엑셀 업로드 완전 작동 버전
+    const snap = await getDocs(collection(db, "cars"));
+    let found = false;
+    const today = new Date().toISOString().split('T')[0];
+
+    for (let docSnap of snap.docs){
+      const d = docSnap.data();
+      const carNum = decrypt(d.carNum);
+      const expireDate = d.expireDate ? decrypt(d.expireDate) : null;
+
+      // 만료일이 지났으면 삭제
+      if (expireDate && expireDate < today){
+        await deleteDoc(doc(db,"cars",docSnap.id));
+        continue;
+      }
+
+      if (carNum.slice(-4) === num){
+        let html = `
+        <div class="border p-3 rounded-lg mb-3 bg-gray-50 text-lg">
+          <p><b>이름:</b> ${decrypt(d.name)}</p>
+          <p><b>소속:</b> ${decrypt(d.org)}</p>`;
+        if(currentRole === 'admin'){
+          html += `<p><b>전화번호:</b> <a href="tel:${decrypt(d.phone).replace(/[^0-9]/g,'')}" class="text-blue-600 underline">${decrypt(d.phone)}</a></p>`;
+        }
+        html += `<p><b>차량번호:</b> ${carNum}</p>
+          <p><b>차종:</b> ${decrypt(d.carType)}</p>`;
+        if(expireDate) html += `<p><b>출입 만료일:</b> ${expireDate}</p>`;
+        if(currentRole === 'admin'){
+          html += `<button onclick="deleteSingleData('${docSnap.id}')" class="mt-2 bg-red-500 text-white px-3 py-1 rounded">삭제</button>`;
+        }
+        html += `</div>`;
+        resultDiv.innerHTML += html;
+        found = true;
+      }
+    }
+    if (!found) resultDiv.innerHTML = "<p class='text-red-500 text-lg'>등록된 차량이 없습니다.</p>";
+  }
+
+  // 데이터 개별 삭제
+  window.deleteSingleData = async function(id){
+    if(confirm("삭제하시겠습니까? 데이터가 지워집니다.")){
+      await deleteDoc(doc(db,"cars",id));
+      alert("삭제되었습니다.");
+      document.getElementById("searchResult").innerHTML = "";
+    }
+  }
+
+  // 신규 등록
+  window.saveData = async function(){
+    const name=document.getElementById('name').value.trim();
+    const org=document.getElementById('org').value;
+    const phone=document.getElementById('phone').value.trim();
+    const carNum=document.getElementById('carNum').value.trim();
+    const carType=document.getElementById('carType').value.trim();
+    const option=document.getElementById('expireOption').value;
+    const expireDate=(option==='date')?document.getElementById('expireDate').value:null;
+
+    if(!name||!org||!phone||!carNum||!carType){alert("모든 항목을 입력하세요.");return;}
+
+    await setDoc(doc(db,"cars",carNum),{
+      name:encrypt(name), org:encrypt(org), phone:encrypt(phone),
+      carNum:encrypt(carNum), carType:encrypt(carType),
+      expireDate: expireDate?encrypt(expireDate):null
+    });
+    alert("등록 완료!");
+  }
+
+ // ✅ 엑셀 업로드 완전 작동 버전
     window.uploadExcel = async () => {
       const fileInput = document.getElementById("excelFile");
       const file = fileInput.files[0];
@@ -208,7 +288,102 @@
     window.openLoginModal = () => document.getElementById("loginModal").classList.remove("hidden");
     window.closeLoginModal = () => document.getElementById("loginModal").classList.add("hidden");
 
-  </script>
 
+  // 엑셀 다운로드
+  window.exportCurrentData = async function(){
+    const snap=await getDocs(collection(db,"cars"));
+    const rows=[];
+    snap.forEach(docSnap=>{
+      const d=docSnap.data();
+      rows.push({
+        이름:decrypt(d.name), 소속:decrypt(d.org), 전화번호:decrypt(d.phone),
+        차량번호:decrypt(d.carNum), 차종:decrypt(d.carType),
+        출입기간:d.expireDate?decrypt(d.expireDate):"항상"
+      });
+    });
+    const ws=XLSX.utils.json_to_sheet(rows);
+    const wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb,ws,"Cars");
+    XLSX.writeFile(wb,"car_data.xlsx");
+  }
+
+  // 데이터 전체 삭제
+  window.deleteAllData = async function(){
+    if(confirm("전체 데이터를 삭제하시겠습니까?")){
+      const snap=await getDocs(collection(db,"cars"));
+      for(let docSnap of snap.docs){
+        await deleteDoc(doc(db,"cars",docSnap.id));
+      }
+      alert("전체 데이터가 삭제되었습니다.");
+    }
+  }
+
+  // 로그인 관리
+  window.checkLogin=function(){
+    const id=document.getElementById('loginId').value;
+    const pw=document.getElementById('loginPw').value;
+    if(id==="admin"&&pw==="rydbrdnjs1!"){localStorage.setItem("role","admin");currentRole='admin';}
+    else if(id==="user"&&pw==="12345"){localStorage.setItem("role","user");currentRole='user';}
+    else{document.getElementById('loginMsg').innerText="아이디 또는 비밀번호가 올바르지 않습니다.";return;}
+    applyRole();closeLoginModal();alert("로그인 성공!");
+  }
+  window.logout=function(){localStorage.removeItem("role");currentRole=null;applyRole();alert("로그아웃 되었습니다.");}
+  function applyRole(){
+    const role=localStorage.getItem("role");currentRole=role;
+    document.getElementById("searchBtn").disabled=true;
+    document.getElementById("searchBtn").innerText="검색 (로그인 필요)";
+    document.getElementById("adminMenu").classList.add("hidden");
+    document.getElementById("loginBtn").classList.remove("hidden");
+    document.getElementById("logoutBtn").classList.add("hidden");
+    if(role==="user"){document.getElementById("searchBtn").disabled=false;document.getElementById("searchBtn").innerText="검색";
+      document.getElementById("loginBtn").classList.add("hidden");document.getElementById("logoutBtn").classList.remove("hidden");}
+    if(role==="admin"){document.getElementById("searchBtn").disabled=false;document.getElementById("searchBtn").innerText="검색";
+      document.getElementById("adminMenu").classList.remove("hidden");
+      document.getElementById("loginBtn").classList.add("hidden");document.getElementById("logoutBtn").classList.remove("hidden");}
+  }
+
+  document.addEventListener('click',e=>{if(e.target.tagName==='SUMMARY'){document.querySelectorAll('details').forEach(det=>{if(det!==e.target.parentNode)det.removeAttribute('open');});}});
+
+  window.openLoginModal=function(){document.getElementById("loginModal").classList.remove("hidden");}
+  window.closeLoginModal=function(){document.getElementById("loginModal").classList.add("hidden");document.getElementById("loginMsg").innerText="";document.getElementById("loginId").value="";document.getElementById("loginPw").value="";}
+
+  window.onload=applyRole;
+  // 선택 삭제 리스트 불러오기
+  async function loadSelectDeleteList(){
+    const listDiv=document.getElementById("selectDeleteList");
+    if(!listDiv) return;
+    listDiv.innerHTML="";
+    const snap=await getDocs(collection(db,"cars"));
+    snap.forEach(docSnap=>{
+      const d=docSnap.data();
+      listDiv.innerHTML+=`
+        <label class="flex items-center space-x-2">
+          <input type="checkbox" value="${docSnap.id}" class="deleteCheckbox">
+          <span>${decrypt(d.name)} - ${decrypt(d.carNum)}</span>
+        </label>`;
+    });
+  }
+
+  // 선택 삭제 실행
+  window.deleteSelectedData=async function(){
+    const checks=document.querySelectorAll(".deleteCheckbox:checked");
+    if(checks.length===0){alert("삭제할 데이터를 선택하세요.");return;}
+    if(confirm("선택한 데이터를 삭제하시겠습니까?")){
+      for(let c of checks){
+        await deleteDoc(doc(db,"cars",c.value));
+      }
+      alert("선택된 데이터가 삭제되었습니다.");
+      loadSelectDeleteList();
+    }
+  }
+
+  // admin 로그인 시 선택삭제 목록 불러오기
+  const oldApplyRole = applyRole;
+  applyRole = function(){
+    oldApplyRole();
+    if(currentRole==="admin"){ loadSelectDeleteList(); }
+  }
+
+</script>
 </body>
 </html>
