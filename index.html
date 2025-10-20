@@ -224,70 +224,62 @@
     alert("등록 완료!");
   }
 
- // ✅ 엑셀 업로드 완전 작동 버전
-    window.uploadExcel = async () => {
-      const fileInput = document.getElementById("excelFile");
-      const file = fileInput.files[0];
-      if (!file) {
-        alert("엑셀 파일을 선택해주세요.");
-        return;
-      }
+  // === 엑셀 업로드 수정 버전 ===
+  window.uploadExcel = async () => {
+    const fileInput = document.getElementById("excelFile");
+    const file = fileInput.files[0];
+    if (!file) {
+      alert("엑셀 파일을 선택해주세요.");
+      return;
+    }
 
-      try {
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-          const data = new Uint8Array(e.target.result);
-          const workbook = XLSX.read(data, { type: "array" });
-          const sheet = workbook.Sheets[workbook.SheetNames[0]];
-          const rows = XLSX.utils.sheet_to_json(sheet);
+    try {
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: "array" });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(sheet);
 
-          if (!rows.length) {
-            alert("엑셀에 데이터가 없습니다.");
-            return;
-          }
+        if (!rows.length) {
+          alert("엑셀에 데이터가 없습니다.");
+          return;
+        }
 
-          let count = 0;
-          for (const row of rows) {
-            const name = row["이름"] || "";
-            const org = row["소속"] || "";
-            const phone = row["전화번호"] || "";
-            const carNum = row["차량번호"] || "";
-            const carType = row["차종"] || "";
-            const expire = row["출입기간"] || "항상";
+        let count = 0;
+        for (const row of rows) {
+          const name = row["이름"] || "";
+          const org = row["소속"] || "";
+          const phone = row["전화번호"] || "";
+          const carNum = row["차량번호"] || "";
+          const carType = row["차종"] || "";
+          const expire = row["출입기간"] || "항상";
 
-            if (!carNum) continue;
+          if (!carNum) continue; // 차량번호 없는 행 무시
 
-            const encrypted = {
-              name: enc(name),
-              org: enc(org),
-              phone: enc(phone),
-              carNum: enc(carNum),
-              carType: enc(carType),
-              expireDate: enc(expire)
-            };
+          const encrypted = {
+            name: CryptoJS.AES.encrypt(name, "MySecretKey2025!").toString(),
+            org: CryptoJS.AES.encrypt(org, "MySecretKey2025!").toString(),
+            phone: CryptoJS.AES.encrypt(phone, "MySecretKey2025!").toString(),
+            carNum: CryptoJS.AES.encrypt(carNum, "MySecretKey2025!").toString(),
+            carType: CryptoJS.AES.encrypt(carType, "MySecretKey2025!").toString(),
+            expireDate: CryptoJS.AES.encrypt(expire, "MySecretKey2025!").toString()
+          };
 
-            await setDoc(doc(db, "cars", carNum), encrypted);
-            count++;
-          }
+          await setDoc(doc(db, "cars", carNum), encrypted);
+          count++;
+        }
 
-          alert(`엑셀 업로드 완료! (${count}건 등록됨)`);
-          fileInput.value = "";
-        };
+        alert(`엑셀 업로드 완료! (${count}건 등록됨)`);
+        fileInput.value = "";
+      };
 
-        reader.readAsArrayBuffer(file);
-      } catch (err) {
-        console.error(err);
-        alert("엑셀 업로드 중 오류 발생: " + err.message);
-      }
-    };
-
-    window.toggleExpireDate = () => {
-      document.getElementById("expireDate").classList.toggle("hidden", document.getElementById("expireOption").value !== "date");
-    };
-
-    window.openLoginModal = () => document.getElementById("loginModal").classList.remove("hidden");
-    window.closeLoginModal = () => document.getElementById("loginModal").classList.add("hidden");
-
+      reader.readAsArrayBuffer(file);
+    } catch (err) {
+      console.error(err);
+      alert("엑셀 업로드 중 오류가 발생했습니다: " + err.message);
+    }
+  };
 
   // 엑셀 다운로드
   window.exportCurrentData = async function(){
