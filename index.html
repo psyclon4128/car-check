@@ -135,7 +135,7 @@
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
 
-  const SECRET_KEY = "MyStrongSecretKey123!"; // 암호화 키 단일화
+  const SECRET_KEY = "MyStrongSecretKey123!";
 
   function encrypt(text){ return CryptoJS.AES.encrypt(text, SECRET_KEY).toString(); }
   function decrypt(cipher){ try{return CryptoJS.AES.decrypt(cipher, SECRET_KEY).toString(CryptoJS.enc.Utf8);}catch{return cipher;} }
@@ -225,7 +225,7 @@
     alert("등록 완료!");
   }
 
-  // === 엑셀 업로드 (암호화 키 단일화 버전) ===
+  // 엑셀 업로드 실패 사유 안내 버전
   window.uploadExcel = async () => {
     const fileInput = document.getElementById("excelFile");
     const file = fileInput.files[0];
@@ -237,48 +237,85 @@
     try {
       const reader = new FileReader();
       reader.onload = async (e) => {
-        const data = new Uint8Array(e.target.result);
-        const workbook = XLSX.read(data, { type: "array" });
-        const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        const rows = XLSX.utils.sheet_to_json(sheet);
+        try {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: "array" });
+          const sheet = workbook.Sheets[workbook.SheetNames[0]];
+          const rows = XLSX.utils.sheet_to_json(sheet);
 
-        if (!rows.length) {
-          alert("엑셀에 데이터가 없습니다.");
-          return;
+          if (!rows.length) {
+            alert("엑셀에 데이터가 없습니다.");
+            return;
+          }
+
+          let count = 0, errorCount = 0, errors = [];
+          for (let i = 0; i < rows.length; i++) {
+            const row = rows[i];
+            const name = row["이름"] || "";
+            const org = row["소속"] || "";
+            const phone = row["전화번호"] || "";
+            const carNum = row["차량번호"] || "";
+            const carType = row["차종"] || "";
+            let expire = row["출입기간"];
+            if (expire === undefined || expire === null || expire === "") expire = "항상";
+
+            // 필수값 누락
+            let missing = [];
+            if (!carNum) missing.push("차량번호");
+            if (!name) missing.push("이름");
+            if (!org) missing.push("소속");
+            if (!phone) missing.push("전화번호");
+            if (!carType) missing.push("차종");
+            if (missing.length > 0) {
+              errors.push(`행 ${i+2}: 필수값 누락 (${missing.join(", ")})`);
+              errorCount++;
+              continue;
+            }
+
+            // 날짜 셀 변환
+            if (typeof expire === "number") {
+              try {
+                const EXCEL_EPOCH = new Date(Date.UTC(1899, 11, 30));
+                const dateObj = new Date(EXCEL_EPOCH.getTime() + expire * 86400000);
+                expire = dateObj.toISOString().split('T')[0];
+              } catch (err) {
+                errors.push(`행 ${i+2}: 출입기간 숫자→날짜 변환 실패 (${expire})`);
+                errorCount++;
+                continue;
+              }
+            }
+
+            try {
+              const encrypted = {
+                name: encrypt(name),
+                org: encrypt(org),
+                phone: encrypt(phone),
+                carNum: encrypt(carNum),
+                carType: encrypt(carType),
+                expireDate: encrypt(expire)
+              };
+              await setDoc(doc(db, "cars", carNum), encrypted);
+              count++;
+            } catch (err) {
+              errors.push(`행 ${i+2}: Firestore 저장 오류 (${err.message})`);
+              errorCount++;
+            }
+          }
+
+          let msg = `엑셀 업로드 완료! (${count}건 등록됨)`;
+          if (errorCount > 0) {
+            msg += `\n★ 오류 ${errorCount}건:\n${errors.join("\n")}`;
+          }
+          alert(msg);
+          fileInput.value = "";
+        } catch (err) {
+          alert("업로드 파싱 오류: " + err.message);
         }
-
-        let count = 0;
-        for (const row of rows) {
-          const name = row["이름"] || "";
-          const org = row["소속"] || "";
-          const phone = row["전화번호"] || "";
-          const carNum = row["차량번호"] || "";
-          const carType = row["차종"] || "";
-          const expire = row["출입기간"] || "항상";
-
-          if (!carNum) continue; // 차량번호 없는 행 무시
-
-          const encrypted = {
-            name: CryptoJS.AES.encrypt(name, SECRET_KEY).toString(),
-            org: CryptoJS.AES.encrypt(org, SECRET_KEY).toString(),
-            phone: CryptoJS.AES.encrypt(phone, SECRET_KEY).toString(),
-            carNum: CryptoJS.AES.encrypt(carNum, SECRET_KEY).toString(),
-            carType: CryptoJS.AES.encrypt(carType, SECRET_KEY).toString(),
-            expireDate: CryptoJS.AES.encrypt(expire, SECRET_KEY).toString()
-          };
-
-          await setDoc(doc(db, "cars", carNum), encrypted);
-          count++;
-        }
-
-        alert(`엑셀 업로드 완료! (${count}건 등록됨)`);
-        fileInput.value = "";
       };
 
       reader.readAsArrayBuffer(file);
     } catch (err) {
-      console.error(err);
-      alert("엑셀 업로드 중 오류가 발생했습니다: " + err.message);
+      alert("엑셀 업로드 전체 오류: " + err.message);
     }
   };
 
@@ -335,12 +372,26 @@
       document.getElementById("loginBtn").classList.add("hidden");document.getElementById("logoutBtn").classList.remove("hidden");}
   }
 
-  document.addEventListener('click',e=>{if(e.target.tagName==='SUMMARY'){document.querySelectorAll('details').forEach(det=>{if(det!==e.target.parentNode)det.removeAttribute('open');});}});
+  document.addEventListener('click',e=>{
+    if(e.target.tagName==='SUMMARY'){
+      document.querySelectorAll('details').forEach(det=>{
+        if(det !== e.target.parentNode) det.removeAttribute('open');
+      });
+    }
+  });
 
-  window.openLoginModal=function(){document.getElementById("loginModal").classList.remove("hidden");}
-  window.closeLoginModal=function(){document.getElementById("loginModal").classList.add("hidden");document.getElementById("loginMsg").innerText="";document.getElementById("loginId").value="";document.getElementById("loginPw").value="";}
+  window.openLoginModal=function(){
+    document.getElementById("loginModal").classList.remove("hidden");
+  }
+  window.closeLoginModal=function(){
+    document.getElementById("loginModal").classList.add("hidden");
+    document.getElementById("loginMsg").innerText="";
+    document.getElementById("loginId").value="";
+    document.getElementById("loginPw").value="";
+  }
 
   window.onload=applyRole;
+
   // 선택 삭제 리스트 불러오기
   async function loadSelectDeleteList(){
     const listDiv=document.getElementById("selectDeleteList");
