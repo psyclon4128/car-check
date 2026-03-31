@@ -147,9 +147,9 @@
     document.getElementById("expireDate").classList.toggle("hidden", option !== "date");
   }
 
-  // 5부제 판별 및 예외 상시 표기 로직
+  // 5부제 및 예외 상시 노출 판별
   function getCarStatus(carNum, isException) {
-    // 1. 예외 대상인 경우: 요일 상관없이 항상 표시
+    // 예외 대상(O)은 요일 상관없이 무조건 표시
     if (isException === 'O') {
       return { text: '차량5부제 예외', color: 'text-blue-600', isViolated: false };
     }
@@ -157,10 +157,10 @@
     const last = parseInt(carNum.slice(-1));
     if (isNaN(last)) return null;
 
-    const day = new Date().getDay(); // 1(월)~5(금)
+    const day = new Date().getDay(); 
     const rules = { 1:[1,6], 2:[2,7], 3:[3,8], 4:[4,9], 5:[5,0] };
 
-    // 2. 위반일 경우에만 표시
+    // 위반일 때만 표시
     if (rules[day] && rules[day].includes(last)) {
       return { text: '차량5부제 위반', color: 'text-red-600', isViolated: true };
     }
@@ -192,7 +192,6 @@
         if(currentRole === 'admin') html += `<p><b>전화번호:</b> ${decrypt(d.phone)}</p>`;
         html += `<p><b>차량번호:</b> ${carNum}</p><p><b>차종:</b> ${decrypt(d.carType)}</p>`;
         
-        // 상태 표시 (예외 대상은 항상, 위반 차량은 위반일 때만)
         if(status) html += `<p><b>상태:</b> <span class="font-bold ${status.color}">${status.text}</span></p>`;
         
         if(expire) html += `<p><b>만료일:</b> ${expire}</p>`;
@@ -204,16 +203,18 @@
   }
 
   window.saveData = async function(){
+    const carNumVal = document.getElementById('carNum').value.trim();
+    if(!carNumVal) {alert("차량번호를 입력하세요."); return;}
     const data = {
       name: encrypt(document.getElementById('name').value),
       org: encrypt(document.getElementById('org').value),
       phone: encrypt(document.getElementById('phone').value),
-      carNum: encrypt(document.getElementById('carNum').value),
+      carNum: encrypt(carNumVal),
       carType: encrypt(document.getElementById('carType').value),
       exception: encrypt(document.getElementById('isException').value),
       expireDate: document.getElementById('expireOption').value === 'date' ? encrypt(document.getElementById('expireDate').value) : null
     };
-    await setDoc(doc(db,"cars",document.getElementById('carNum').value), data);
+    await setDoc(doc(db,"cars",carNumVal), data);
     alert("등록 완료"); loadSelectDeleteList();
   }
 
@@ -223,7 +224,7 @@
     const reader = new FileReader();
     reader.onload = async (e) => {
       const workbook = XLSX.read(new Uint8Array(e.target.result), { type: "array" });
-      const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+      const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.Sheets.SheetNames[0]]);
       for (const r of rows) {
         const cn = String(r["차량번호"] || "");
         if(!cn) continue;
@@ -239,7 +240,7 @@
     reader.readAsArrayBuffer(file);
   };
 
-  // 엑셀 다운로드 (드롭다운 기능 보강)
+  /* 엑셀 다운로드 (드롭다운 호환성 강화 버전) */
   window.exportCurrentData = async function(){
     const snap=await getDocs(collection(db,"cars"));
     const data = [["이름", "소속", "전화번호", "차량번호", "차종", "차량5부제 예외", "출입기간"]];
@@ -250,24 +251,39 @@
 
     const ws = XLSX.utils.aoa_to_sheet(data);
 
-    /* 데이터 유효성 검사 (드롭다운) 설정 */
+    /* 엑셀 데이터 유효성 검사 (드롭다운) 명세 추가 */
+    /* 엑셀 2021 호환성을 위해 sqref를 구체적으로 지정하고 showDropDown 옵션을 강조 */
     if(!ws['!dataValidation']) ws['!dataValidation'] = [];
     ws['!dataValidation'].push({
-      sqref: "F2:F1000", // F열(예외항목) 2행부터 1000행까지
+      sqref: `F2:F${data.length + 500}`, // 데이터 + 여유분
       type: 'list',
-      formula1: '"O,X"', // O 또는 X 선택
+      formula1: '"O,X"',
       allowBlank: true,
       showDropDown: true,
       showErrorMessage: true,
       errorTitle: '입력 제한',
-      error: '리스트에 있는 O 또는 X만 입력 가능합니다.'
+      error: '목록에서 O 또는 X를 선택하세요.'
     });
 
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "차량목록");
-    
-    // 드롭다운이 포함된 파일은 일반 writeFile보다 아래 형식이 안전함
-    XLSX.writeFile(wb, "국세공무원교육원_차량관리.xlsx", { bookType: 'xlsx', type: 'binary' });
+
+    /* 바이너리 형태로 변환하여 호환성 극대화 */
+    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'binary' });
+    function s2ab(s) {
+      const buf = new ArrayBuffer(s.length);
+      const view = new Uint8Array(buf);
+      for (let i=0; i<s.length; i++) view[i] = s.charCodeAt(i) & 0xFF;
+      return buf;
+    }
+
+    const blob = new Blob([s2ab(wbout)], { type: "application/octet-stream" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "국세공무원교육원_차량현황.xlsx";
+    a.click();
+    window.URL.revokeObjectURL(url);
   }
 
   window.checkLogin=function(){
@@ -275,11 +291,11 @@
     const pw=document.getElementById('loginPw').value;
     if(id==="admin"&&pw==="rydbrdnjs1!") localStorage.setItem("role","admin");
     else if(id==="user"&&pw==="12345") localStorage.setItem("role","user");
-    else { alert("정보 오류"); return; }
+    else { alert("아이디 또는 비번이 틀렸습니다."); return; }
     applyRole(); closeLoginModal();
   }
   
-  window.logout=function(){ localStorage.removeItem("role"); applyRole(); }
+  window.logout=function(){ localStorage.removeItem("role"); applyRole(); alert("로그아웃 되었습니다."); }
   
   function applyRole(){
     const role=localStorage.getItem("role");
