@@ -80,7 +80,7 @@
         <summary class="cursor-pointer text-lg font-semibold bg-gray-200 p-3 rounded-lg">데이터 관리 (수정 및 삭제)</summary>
         <div class="mt-3 space-y-3">
           <div class="flex flex-col gap-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
-            <label class="text-xs text-blue-700 font-bold">목록 내 검색</label>
+            <label class="text-xs text-blue-700 font-bold">목록 내 검색 (이름/소속/전화번호/차량번호/차종/예외 O,X)</label>
             <div class="flex items-center gap-2">
               <input id="listFilter" type="text" placeholder="검색어 입력..." 
                      class="flex-1 p-2 border rounded-lg text-sm" oninput="initListSearch()">
@@ -108,8 +108,8 @@
     <div class="bg-white rounded-lg shadow-lg p-6 w-80 relative">
       <button onclick="closeLoginModal()" class="absolute top-2 right-2 text-gray-500 text-lg">&times;</button>
       <h2 class="text-lg font-bold mb-4 text-center">로그인</h2>
-      <input id="loginId" type="text" placeholder="아이디" class="w-full p-2 border rounded-lg mb-3">
-      <input id="loginPw" type="password" placeholder="비밀번호" class="w-full p-2 border rounded-lg mb-3">
+      <input id="loginId" type="text" placeholder="아이디" class="w-full p-2 border rounded-lg mb-3" onkeypress="if(event.keyCode==13) checkLogin()">
+      <input id="loginPw" type="password" placeholder="비밀번호" class="w-full p-2 border rounded-lg mb-3" onkeypress="if(event.keyCode==13) checkLogin()">
       <div class="flex justify-between gap-2">
         <button onclick="checkLogin()" class="flex-1 bg-blue-600 text-white py-2 rounded-lg">로그인</button>
         <button onclick="closeLoginModal()" class="flex-1 bg-gray-400 text-white py-2 rounded-lg">취소</button>
@@ -173,8 +173,6 @@
   let foundElements = [];
   let currentIndex = -1;
 
-  // --- 전역 함수 등록 (window.함수명) ---
-
   window.openLoginModal = () => document.getElementById("loginModal").classList.remove("hidden");
   window.closeLoginModal = () => document.getElementById("loginModal").classList.add("hidden");
 
@@ -198,12 +196,10 @@
   };
 
   window.clearAllSearch = function() {
-    document.getElementById('searchNum').value = "";
-    document.getElementById('searchResult').innerHTML = "";
-    const filterInput = document.getElementById('listFilter');
-    if(filterInput) filterInput.value = "";
-    const nav = document.getElementById('searchNav');
-    if(nav) nav.classList.add('hidden');
+    const sn = document.getElementById('searchNum'); if(sn) sn.value = "";
+    const sr = document.getElementById('searchResult'); if(sr) sr.innerHTML = "";
+    const fi = document.getElementById('listFilter'); if(fi) fi.value = "";
+    const nav = document.getElementById('searchNav'); if(nav) nav.classList.add('hidden');
     resetHighlight();
   };
 
@@ -327,6 +323,17 @@
     window.loadSelectDeleteList();
   };
 
+  window.deleteAllData = async function() {
+    if(!confirm("모든 데이터를 삭제하시겠습니까?")) return;
+    const snap = await getDocs(collection(db, "cars"));
+    const batch = writeBatch(db);
+    snap.forEach(d => batch.delete(d.ref));
+    await batch.commit();
+    alert("전체 삭제 완료");
+    window.loadSelectDeleteList();
+    window.clearAllSearch();
+  };
+
   window.saveData = async function() {
     const cn = document.getElementById('carNum').value.trim();
     if(!cn) return;
@@ -401,10 +408,10 @@
   function applyRole(){
     const role = localStorage.getItem("role");
     currentRole = role;
-    document.getElementById("searchBtn").disabled = !role;
-    document.getElementById("adminMenu").classList.toggle("hidden", role !== "admin");
-    document.getElementById("loginBtn").classList.toggle("hidden", !!role);
-    document.getElementById("logoutBtn").classList.toggle("hidden", !role);
+    const sb = document.getElementById("searchBtn"); if(sb) sb.disabled = !role;
+    const am = document.getElementById("adminMenu"); if(am) am.classList.toggle("hidden", role !== "admin");
+    const lb = document.getElementById("loginBtn"); if(lb) lb.classList.toggle("hidden", !!role);
+    const ob = document.getElementById("logoutBtn"); if(ob) ob.classList.toggle("hidden", !role);
     if(role === "admin") window.loadSelectDeleteList();
   }
 
