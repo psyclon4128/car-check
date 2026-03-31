@@ -58,8 +58,8 @@
           <input id="carType" type="text" placeholder="차종" class="w-full p-3 border rounded-lg text-lg">
           <label class="block text-sm font-medium text-gray-600">차량5부제 예외</label>
           <select id="isException" class="w-full p-3 border rounded-lg text-lg">
-            <option value="X">X</option>
-            <option value="O">O</option>
+            <option value="X">X (대상)</option>
+            <option value="O">O (예외)</option>
           </select>
           <button onclick="saveData()" class="w-full bg-green-500 text-white py-3 rounded-lg text-lg">등록</button>
         </div>
@@ -81,35 +81,13 @@
             </div>
           </div>
 
-          <div id="editPanel" class="p-3 bg-orange-50 border border-orange-200 rounded-lg space-y-2">
-            <p class="text-xs font-bold text-orange-700 underline">선택 항목 일괄 수정</p>
-            <div class="grid grid-cols-2 gap-2">
-              <select id="editOrg" class="p-2 text-xs border rounded">
-                <option value="">소속 변경 없음</option>
-                <option value="국세공무원교육원">국세공무원교육원</option>
-                <option value="국세상담센터">국세상담센터</option>
-                <option value="주류면허지원센터">주류면허지원센터</option>
-                <option value="서귀포지서">서귀포지서</option>
-                <option value="재직교육생">재직교육생</option>
-                <option value="신규교육생">신규교육생</option>
-                <option value="기타">기타</option>
-              </select>
-              <select id="editEx" class="p-2 text-xs border rounded">
-                <option value="">5부제 변경 없음</option>
-                <option value="O">예외(O)</option>
-                <option value="X">대상(X)</option>
-              </select>
-            </div>
-            <input id="editCarType" type="text" placeholder="차종 일괄 변경 (입력시에만 적용)" class="w-full p-2 text-xs border rounded">
-            <button onclick="updateSelectedData()" class="w-full bg-orange-500 text-white py-2 rounded text-sm font-bold">선택 항목 일괄 수정 적용</button>
-          </div>
-
           <div id="selectDeleteList" class="max-h-80 overflow-y-auto border p-2 rounded bg-gray-50 space-y-1 text-sm"></div>
           
           <div class="flex gap-2">
-            <button onclick="deleteSelectedData()" class="flex-1 bg-red-400 text-white py-3 rounded-lg font-bold text-sm">선택 삭제</button>
-            <button onclick="exportCurrentData()" class="flex-1 bg-gray-500 text-white py-3 rounded-lg font-bold text-sm">엑셀 다운로드</button>
+            <button onclick="openEditModal()" class="flex-1 bg-orange-500 text-white py-3 rounded-lg font-bold text-sm">선택 항목 수정</button>
+            <button onclick="deleteSelectedData()" class="flex-1 bg-red-400 text-white py-3 rounded-lg font-bold text-sm">선택 항목 삭제</button>
           </div>
+          <button onclick="exportCurrentData()" class="w-full bg-gray-500 text-white py-3 rounded-lg font-bold text-sm mt-2">엑셀 다운로드</button>
           <button onclick="deleteAllData()" class="w-full bg-red-700 text-white py-2 rounded-lg text-xs font-bold mt-4 opacity-50">데이터 전체 삭제</button>
         </div>
       </details>
@@ -131,9 +109,57 @@
     </div>
   </div>
 
+  <div id="editModal" class="hidden fixed inset-0 bg-black bg-opacity-40 fade-in flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-lg p-6 w-80 relative">
+      <button onclick="closeEditModal()" class="absolute top-2 right-2 text-gray-500 text-lg">&times;</button>
+      <h2 class="text-lg font-bold mb-2 text-center">선택 항목 수정 (<span id="editCount">0</span>건)</h2>
+      <p id="editModalHelp" class="text-xs text-red-500 mb-4 text-center hidden">※ 다수 선택 시: 변경할 항목만 입력하세요.<br>빈칸은 기존 데이터가 유지됩니다.</p>
+      
+      <div class="space-y-3">
+        <div>
+          <label class="block text-xs font-medium text-gray-600 mb-1">이름</label>
+          <input id="editModalName" type="text" placeholder="변경 시 입력" class="w-full p-2 border rounded-lg text-sm">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-600 mb-1">소속</label>
+          <select id="editModalOrg" class="w-full p-2 border rounded-lg text-sm">
+            <option value="">변경 없음</option>
+            <option value="국세공무원교육원">국세공무원교육원</option>
+            <option value="국세상담센터">국세상담센터</option>
+            <option value="주류면허지원센터">주류면허지원센터</option>
+            <option value="서귀포지서">서귀포지서</option>
+            <option value="재직교육생">재직교육생</option>
+            <option value="신규교육생">신규교육생</option>
+            <option value="기타">기타</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-600 mb-1">전화번호</label>
+          <input id="editModalPhone" type="text" placeholder="변경 시 입력" class="w-full p-2 border rounded-lg text-sm">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-600 mb-1">차종</label>
+          <input id="editModalCarType" type="text" placeholder="변경 시 입력" class="w-full p-2 border rounded-lg text-sm">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-600 mb-1">차량5부제 예외 여부</label>
+          <select id="editModalEx" class="w-full p-2 border rounded-lg text-sm">
+            <option value="">변경 없음</option>
+            <option value="O">예외 (O)</option>
+            <option value="X">대상 (X)</option>
+          </select>
+        </div>
+        <div class="flex justify-between gap-2 mt-5">
+          <button onclick="saveEditData()" class="flex-1 bg-orange-500 text-white py-2 rounded-lg font-bold">저장</button>
+          <button onclick="closeEditModal()" class="flex-1 bg-gray-400 text-white py-2 rounded-lg font-bold">취소</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getFirestore, collection, doc, getDocs, setDoc, deleteDoc, writeBatch, updateDoc } 
+  import { getFirestore, collection, doc, getDocs, setDoc, deleteDoc, writeBatch } 
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
   const firebaseConfig = {
@@ -157,7 +183,7 @@
   let foundElements = [];
   let currentIndex = -1;
 
-  // --- 목록 로드 및 UI 제어 ---
+  // --- 목록 로드 (수정을 위한 데이터 속성 추가) ---
   window.loadSelectDeleteList = async function(){
     const listDiv = document.getElementById("selectDeleteList");
     if(!listDiv || currentRole !== 'admin') return;
@@ -169,199 +195,4 @@
       const ex = d.exception ? decrypt(d.exception) : 'X';
       
       listDiv.innerHTML += `
-        <label class="flex items-start space-x-2 border-b py-2 px-1 delete-item" data-search="${n}${o}${t}${c}${p}${ex}">
-          <input type="checkbox" value="${docSnap.id}" class="deleteCheckbox mt-1 w-5 h-5">
-          <div class="text-xs leading-relaxed">
-            <span class="font-bold text-sm text-blue-700">${n}</span> | <span>${o}</span> | 
-            <span class="font-medium text-gray-800">${c}</span> | <span class="font-bold text-orange-600">[${ex}]</span>
-            <div class="text-gray-500">${t} | ${p}</div>
-          </div>
-        </label>`;
-    });
-  }
-
-  // --- 일괄 수정 기능 ---
-  window.updateSelectedData = async function() {
-    const checks = document.querySelectorAll(".deleteCheckbox:checked");
-    if(checks.length === 0) { alert("수정할 항목을 먼저 체크해주세요."); return; }
-
-    const newOrg = document.getElementById('editOrg').value;
-    const newEx = document.getElementById('editEx').value;
-    const newType = document.getElementById('editCarType').value.trim();
-
-    if(!newOrg && !newEx && !newType) { alert("변경할 내용을 하나 이상 선택하거나 입력하세요."); return; }
-
-    if(!confirm(`${checks.length}건의 정보를 일괄 수정하시겠습니까?`)) return;
-
-    const batch = writeBatch(db);
-    checks.forEach(c => {
-      const docRef = doc(db, "cars", c.value);
-      const updateData = {};
-      if(newOrg) updateData.org = encrypt(newOrg);
-      if(newEx) updateData.exception = encrypt(newEx);
-      if(newType) updateData.carType = encrypt(newType);
-      batch.update(docRef, updateData);
-    });
-
-    await batch.commit();
-    alert("수정 완료되었습니다.");
-    loadSelectDeleteList();
-    // 수정 필드 초기화
-    document.getElementById('editOrg').value = "";
-    document.getElementById('editEx').value = "";
-    document.getElementById('editCarType').value = "";
-  }
-
-  // --- 기존 검색 및 삭제 기능 보완 ---
-  window.initListSearch = function() {
-    resetHighlight();
-    const val = document.getElementById('listFilter').value.toLowerCase().trim();
-    const nav = document.getElementById('searchNav');
-    if (!val) { nav.classList.add('hidden'); return; }
-
-    const items = document.querySelectorAll('.delete-item');
-    items.forEach(item => {
-      if (item.getAttribute('data-search').toLowerCase().includes(val)) {
-        item.classList.add('highlight-found');
-        foundElements.push(item);
-      }
-    });
-
-    if (foundElements.length > 0) {
-      nav.classList.remove('hidden');
-      currentIndex = 0;
-      updateSearchUI();
-    } else {
-      nav.classList.add('hidden');
-    }
-  }
-
-  function updateSearchUI() {
-    foundElements.forEach(el => el.classList.remove('highlight-current'));
-    const currentEl = foundElements[currentIndex];
-    currentEl.classList.add('highlight-current');
-    currentEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    document.getElementById('searchCount').innerText = `${currentIndex + 1} / ${foundElements.length}`;
-  }
-
-  window.nextSearchItem = () => { if (foundElements.length > 0) { currentIndex = (currentIndex + 1) % foundElements.length; updateSearchUI(); } };
-  window.prevSearchItem = () => { if (foundElements.length > 0) { currentIndex = (currentIndex - 1 + foundElements.length) % foundElements.length; updateSearchUI(); } };
-
-  function resetHighlight() {
-    document.querySelectorAll('.delete-item').forEach(item => {
-      item.classList.remove('highlight-found', 'highlight-current');
-    });
-    foundElements = [];
-    currentIndex = -1;
-  }
-
-  window.searchCar = async function() {
-    const num = document.getElementById('searchNum').value.trim();
-    const resultDiv = document.getElementById('searchResult');
-    if (num.length !== 4) { resultDiv.innerHTML = "뒷자리 4자리를 입력하세요."; return; }
-    resultDiv.innerHTML = "조회 중...";
-
-    const snap = await getDocs(collection(db, "cars"));
-    const today = new Date().toISOString().split('T')[0];
-    let found = false;
-    resultDiv.innerHTML = "";
-
-    const day = new Date().getDay();
-    const rules = { 1:[1,6], 2:[2,7], 3:[3,8], 4:[4,9], 5:[5,0] };
-
-    for (let docSnap of snap.docs){
-      const d = docSnap.data();
-      const carNum = decrypt(d.carNum);
-      const isEx = d.exception ? decrypt(d.exception) : 'X';
-      if (carNum.slice(-4) === num){
-        found = true;
-        const last = parseInt(carNum.slice(-1));
-        const isViolated = !isNaN(last) && rules[day] && rules[day].includes(last);
-        let html = `<div class="text-left border p-4 rounded-lg mb-3 bg-gray-50 border-l-4 ${isViolated && isEx === 'X' ? 'border-l-red-500' : 'border-l-blue-500'}">
-          <p><b>이름:</b> ${decrypt(d.name)}</p>
-          <p><b>소속:</b> ${decrypt(d.org)}</p>`;
-        if(currentRole === 'admin') html += `<p><b>전화번호:</b> ${decrypt(d.phone)}</p>`;
-        html += `<p><b>차량번호:</b> ${carNum}</p><p><b>차종:</b> ${decrypt(d.carType)}</p>`;
-        if (isEx === 'O') html += `<p class="mt-2 text-blue-600 font-bold">● 차량5부제 예외대상 (O)</p>`;
-        else if (isViolated) html += `<p class="mt-2 text-red-600 font-bold">● 차량5부제 위반 (오늘 제한)</p>`;
-        html += `</div>`;
-        resultDiv.innerHTML += html;
-      }
-    }
-    if(!found) resultDiv.innerHTML = "검색 결과가 없습니다.";
-  }
-
-  // --- 기존 기타 함수 유지 ---
-  window.deleteSelectedData = async function() {
-    const checks = document.querySelectorAll(".deleteCheckbox:checked");
-    if(checks.length === 0) { alert("항목을 체크해주세요."); return; }
-    if(!confirm(`${checks.length}건을 삭제하시겠습니까?`)) return;
-    for(let c of checks) await deleteDoc(doc(db, "cars", c.value));
-    alert("삭제 완료");
-    loadSelectDeleteList();
-  }
-
-  window.deleteAllData = async function() {
-    if(!confirm("진짜로 모든 데이터를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.")) return;
-    const snap = await getDocs(collection(db, "cars"));
-    const batch = writeBatch(db);
-    snap.forEach(d => batch.delete(d.ref));
-    await batch.commit();
-    alert("전체 삭제 완료");
-    loadSelectDeleteList();
-  }
-
-  window.saveData = async function(){
-    const cn = document.getElementById('carNum').value.trim();
-    if(!cn) return;
-    await setDoc(doc(db,"cars",cn), {
-      name: encrypt(document.getElementById('name').value),
-      org: encrypt(document.getElementById('org').value),
-      phone: encrypt(document.getElementById('phone').value),
-      carNum: encrypt(cn),
-      carType: encrypt(document.getElementById('carType').value),
-      exception: encrypt(document.getElementById('isException').value)
-    });
-    alert("등록 완료");
-    loadSelectDeleteList();
-  }
-
-  window.checkLogin=function(){
-    const id=document.getElementById('loginId').value, pw=document.getElementById('loginPw').value;
-    if(id==="admin"&&pw==="rydbrdnjs1!") localStorage.setItem("role","admin");
-    else if(id==="user"&&pw==="12345") localStorage.setItem("role","user");
-    else { alert("실패"); return; }
-    applyRole(); closeLoginModal();
-  }
-  
-  window.logout=function(){ localStorage.removeItem("role"); applyRole(); alert("로그아웃 되었습니다."); }
-
-  window.exportCurrentData = async function(){
-    const snap=await getDocs(collection(db,"cars"));
-    const data = [["이름", "소속", "전화번호", "차량번호", "차종", "차량5부제 예외"]];
-    snap.forEach(docSnap=>{
-      const d=docSnap.data();
-      data.push([decrypt(d.name), decrypt(d.org), decrypt(d.phone), decrypt(d.carNum), decrypt(d.carType), d.exception?decrypt(d.exception):"X"]);
-    });
-    const ws = XLSX.utils.aoa_to_sheet(data);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "현황");
-    XLSX.writeFile(wb, "차량현황.xlsx");
-  }
-
-  function applyRole(){
-    const role=localStorage.getItem("role");
-    currentRole=role;
-    document.getElementById("searchBtn").disabled=!role;
-    document.getElementById("adminMenu").classList.toggle("hidden", role!=="admin");
-    document.getElementById("loginBtn").classList.toggle("hidden", !!role);
-    document.getElementById("logoutBtn").classList.toggle("hidden", !role);
-    if(role==="admin") loadSelectDeleteList();
-  }
-
-  window.openLoginModal = () => document.getElementById("loginModal").classList.remove("hidden");
-  window.closeLoginModal = () => document.getElementById("loginModal").classList.add("hidden");
-  window.onload = applyRole;
-</script>
-</body>
-</html>
+        <label class="flex items-start space-x-2 border-b py-2 px-1 delete-item" data-search="${n}${o}${t}${c}${p
