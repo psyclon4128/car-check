@@ -152,22 +152,37 @@
     else dateInput.classList.add("hidden");
   }
 
-  // 5부제 로직
-  function getStatus(carNum, isEx) {
-    if (isEx === 'O') return { t: '차량5부제 예외', c: 'text-blue-600' };
-    const last = parseInt(carNum.slice(-1));
-    if (isNaN(last)) return null;
-    const day = new Date().getDay();
-    const rules = { 1:[1,6], 2:[2,7], 3:[3,8], 4:[4,9], 5:[5,0] };
-    if (rules[day] && rules[day].includes(last)) return { t: '차량5부제 위반', c: 'text-red-600' };
+  // 차량 5부제 상태 판별 함수
+  function checkFiveDaySystem(carNum, isException) {
+    // 예외 대상이면 무조건 표기
+    if (isException === 'O') {
+      return { status: '차량5부제 예외', color: 'text-blue-600', isViolated: false };
+    }
+    
+    const lastDigit = parseInt(carNum.slice(-1));
+    if (isNaN(lastDigit)) return null;
+
+    const day = new Date().getDay(); // 0:일, 1:월, 2:화, 3:수, 4:목, 5:금, 6:토
+    const rules = {
+      1: [1, 6], // 월
+      2: [2, 7], // 화
+      3: [3, 8], // 수
+      4: [4, 9], // 목
+      5: [5, 0]  // 금
+    };
+
+    if (rules[day] && rules[day].includes(lastDigit)) {
+      return { status: '차량5부제 위반', color: 'text-red-600', isViolated: true };
+    }
     return null;
   }
 
+  // 차량 조회
   window.searchCar = async function() {
     const num = document.getElementById('searchNum').value.trim();
     const resultDiv = document.getElementById('searchResult');
     resultDiv.innerHTML = "";
-    if (num.length !== 4) { alert("4자리를 입력하세요."); return; }
+    if (num.length !== 4) { alert("뒷자리 4자리를 정확히 입력하세요."); return; }
 
     const snap = await getDocs(collection(db, "cars"));
     let found = false;
@@ -185,38 +200,51 @@
       }
 
       if (carNum.slice(-4) === num){
-        const status = getStatus(carNum, isEx);
-        let html = `<div class="border p-4 rounded-lg mb-3 bg-gray-50 text-lg border-l-4 ${status && status.t.includes('위반') ? 'border-l-red-500' : 'border-l-blue-500'}">
+        const statusInfo = checkFiveDaySystem(carNum, isEx);
+        let html = `<div class="border p-4 rounded-lg mb-3 bg-gray-50 text-lg border-l-4 ${statusInfo && statusInfo.isViolated ? 'border-l-red-500' : 'border-l-blue-500'}">
           <p><b>이름:</b> ${decrypt(d.name)}</p>
           <p><b>소속:</b> ${decrypt(d.org)}</p>`;
+        
         if(currentRole === 'admin') html += `<p><b>전화번호:</b> ${decrypt(d.phone)}</p>`;
-        html += `<p><b>차량번호:</b> ${carNum}</p><p><b>차종:</b> ${decrypt(d.carType)}</p>`;
-        if(status) html += `<p><b>상태:</b> <span class="font-bold ${status.c}">${status.t}</span></p>`;
+        
+        html += `<p><b>차량번호:</b> ${carNum}</p>
+                 <p><b>차종:</b> ${decrypt(d.carType)}</p>`;
+        
+        // 상태값 출력 (예외 대상이면 항상 표시됨)
+        if(statusInfo) {
+          html += `<p><b>상태:</b> <span class="font-bold ${statusInfo.color}">${statusInfo.status}</span></p>`;
+        }
+
         if(expireDate) html += `<p><b>만료일:</b> ${expireDate}</p>`;
-        if(currentRole === 'admin') html += `<button onclick="deleteSingleData('${docSnap.id}')" class="mt-2 bg-red-500 text-white px-3 py-1 rounded text-sm">삭제</button>`;
+        
+        if(currentRole === 'admin'){
+          html += `<button onclick="deleteSingleData('${docSnap.id}')" class="mt-2 bg-red-500 text-white px-3 py-1 rounded text-sm">삭제</button>`;
+        }
         html += `</div>`;
         resultDiv.innerHTML += html;
         found = true;
       }
     }
-    if (!found) resultDiv.innerHTML = "<p class='text-red-500 text-center'>정보가 없습니다.</p>";
+    if (!found) resultDiv.innerHTML = "<p class='text-red-500 text-center py-4'>조회된 차량이 없습니다.</p>";
   }
 
   window.saveData = async function(){
-    const name=document.getElementById('name').value;
+    const name=document.getElementById('name').value.trim();
     const org=document.getElementById('org').value;
-    const phone=document.getElementById('phone').value;
-    const carNum=document.getElementById('carNum').value;
-    const carType=document.getElementById('carType').value;
+    const phone=document.getElementById('phone').value.trim();
+    const carNum=document.getElementById('carNum').value.trim();
+    const carType=document.getElementById('carType').value.trim();
     const isEx=document.getElementById('isException').value;
     const expire=(document.getElementById('expireOption').value==='date')?document.getElementById('expireDate').value:null;
+
+    if(!name||!carNum){alert("필수 항목을 입력하세요."); return;}
 
     await setDoc(doc(db,"cars",carNum),{
       name:encrypt(name), org:encrypt(org), phone:encrypt(phone),
       carNum:encrypt(carNum), carType:encrypt(carType), exception:encrypt(isEx),
       expireDate: expire?encrypt(expire):null
     });
-    alert("등록완료");
+    alert("등록되었습니다.");
     loadSelectDeleteList();
   }
 
@@ -245,7 +273,7 @@
     reader.readAsArrayBuffer(file);
   };
 
-  // 엑셀 다운로드 (O,X 드롭다운 추가 버전)
+  // 엑셀 다운로드 (O,X 선택 박스 기능 추가)
   window.exportCurrentData = async function(){
     const snap=await getDocs(collection(db,"cars"));
     const data = [["이름", "소속", "전화번호", "차량번호", "차종", "차량5부제 예외", "출입기간"]];
@@ -262,30 +290,29 @@
 
     const ws = XLSX.utils.aoa_to_sheet(data);
 
-    // 데이터 유효성 검사 (목록 설정) 추가
-    // 엑셀의 '차량5부제 예외' 컬럼은 F열(인덱스 5)입니다.
-    // 2행부터 마지막 데이터 행까지 적용
+    // F열(차량5부제 예외)에 O,X 선택박스 설정
     if(!ws['!dataValidation']) ws['!dataValidation'] = [];
     ws['!dataValidation'].push({
-      sqref: `F2:F${data.length + 100}`, // 데이터가 늘어날 것을 대비해 여유있게 설정
+      sqref: `F2:F${data.length + 500}`, // 기존 데이터 포함 500행까지 넉넉하게 적용
       type: 'list',
       formula1: '"O,X"',
       showErrorMessage: true,
-      errorTitle: '입력 오류',
-      error: 'O 또는 X만 선택 가능합니다.'
+      errorTitle: '잘못된 입력',
+      error: 'O 또는 X 중에서 선택해 주세요.'
     });
 
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "차량목록");
-    XLSX.writeFile(wb, "차량관리데이터.xlsx");
+    XLSX.writeFile(wb, "국세공무원교육원_차량데이터.xlsx");
   }
 
+  // 로그인 로직
   window.checkLogin=function(){
     const id=document.getElementById('loginId').value;
     const pw=document.getElementById('loginPw').value;
     if(id==="admin"&&pw==="rydbrdnjs1!") localStorage.setItem("role","admin");
     else if(id==="user"&&pw==="12345") localStorage.setItem("role","user");
-    else { alert("로그인 실패"); return; }
+    else { alert("로그인 정보가 틀렸습니다."); return; }
     applyRole(); closeLoginModal();
   }
   
