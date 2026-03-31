@@ -14,10 +14,8 @@
     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     details[open] summary ~ * { animation: sweep .3s ease-in-out; }
     @keyframes sweep { from {opacity: 0; margin-top: -10px;} to {opacity: 1; margin-top: 0;} }
-    
-    /* 검색 강조 스타일 */
-    .highlight-found { background-color: #fef08a; border-radius: 4px; } /* 검색된 모든 항목 */
-    .highlight-current { background-color: #facc15 !important; border: 2px solid #eab308; } /* 현재 선택된 항목 */
+    .highlight-found { background-color: #fef08a; border-radius: 4px; }
+    .highlight-current { background-color: #facc15 !important; border: 2px solid #eab308; }
   </style>
 </head>
 <body class="bg-gray-100 p-4 overflow-x-hidden relative min-h-screen flex flex-col">
@@ -73,4 +71,344 @@
           <input type="file" id="excelFile" class="w-full mb-3 text-lg">
           <div class="flex flex-col sm:flex-row gap-3">
             <button onclick="uploadExcel()" class="flex-1 bg-purple-500 text-white py-3 rounded-lg text-lg">업로드</button>
-            <button onclick="exportCurrentData()" class="flex-1 bg-gray-500 text-white py-3 rounded-lg text-lg">다운로드</button
+            <button onclick="exportCurrentData()" class="flex-1 bg-gray-500 text-white py-3 rounded-lg text-lg">다운로드</button>
+          </div>
+        </div>
+      </details>
+
+      <details class="accordion" id="dataManagementDetails">
+        <summary class="cursor-pointer text-lg font-semibold bg-gray-200 p-3 rounded-lg">데이터 관리 (수정 및 삭제)</summary>
+        <div class="mt-3 space-y-3">
+          <div class="flex flex-col gap-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
+            <label class="text-xs text-blue-700 font-bold">목록 내 검색</label>
+            <div class="flex items-center gap-2">
+              <input id="listFilter" type="text" placeholder="검색어 입력..." 
+                     class="flex-1 p-2 border rounded-lg text-sm" oninput="initListSearch()">
+              <div id="searchNav" class="hidden flex items-center gap-2">
+                <span id="searchCount" class="text-xs font-bold text-gray-600 min-w-[40px] text-center">0 / 0</span>
+                <button onclick="prevSearchItem()" class="p-1 bg-white border rounded hover:bg-gray-100 text-xs">▲</button>
+                <button onclick="nextSearchItem()" class="p-1 bg-white border rounded hover:bg-gray-100 text-xs">▼</button>
+              </div>
+            </div>
+          </div>
+          <div id="selectDeleteList" class="max-h-80 overflow-y-auto border p-2 rounded bg-gray-50 space-y-1"></div>
+          <div class="flex gap-2">
+            <button onclick="openEditModal()" class="flex-1 bg-orange-500 text-white py-3 rounded-lg text-sm font-bold">선택 수정</button>
+            <button onclick="deleteSelectedData()" class="flex-1 bg-red-400 text-white py-3 rounded-lg text-sm font-bold">선택 삭제</button>
+          </div>
+          <button onclick="deleteAllData()" class="w-full bg-red-700 text-white py-2 rounded-lg text-sm font-bold mt-4">전체 삭제</button>
+        </div>
+      </details>
+    </section>
+  </div>
+
+  <div class="text-right w-full p-2 text-sm text-gray-500 mt-auto">made by Banseok Kim</div>
+
+  <div id="loginModal" class="hidden fixed inset-0 bg-black bg-opacity-40 fade-in flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-lg p-6 w-80 relative">
+      <button onclick="closeLoginModal()" class="absolute top-2 right-2 text-gray-500 text-lg">&times;</button>
+      <h2 class="text-lg font-bold mb-4 text-center">로그인</h2>
+      <input id="loginId" type="text" placeholder="아이디" class="w-full p-2 border rounded-lg mb-3">
+      <input id="loginPw" type="password" placeholder="비밀번호" class="w-full p-2 border rounded-lg mb-3">
+      <div class="flex justify-between gap-2">
+        <button onclick="checkLogin()" class="flex-1 bg-blue-600 text-white py-2 rounded-lg">로그인</button>
+        <button onclick="closeLoginModal()" class="flex-1 bg-gray-400 text-white py-2 rounded-lg">취소</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="editModal" class="hidden fixed inset-0 bg-black bg-opacity-40 fade-in flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-lg p-6 w-80 relative">
+      <h2 class="text-lg font-bold mb-4 text-center">데이터 수정 (<span id="editCount">0</span>건)</h2>
+      <div class="space-y-3">
+        <input id="editName" type="text" placeholder="이름 (비워두면 유지)" class="w-full p-2 border rounded-lg text-sm">
+        <select id="editOrg" class="w-full p-2 border rounded-lg text-sm">
+          <option value="">소속 (변경 없음)</option>
+          <option value="국세공무원교육원">국세공무원교육원</option>
+          <option value="국세상담센터">국세상담센터</option>
+          <option value="주류면허지원센터">주류면허지원센터</option>
+          <option value="서귀포지서">서귀포지서</option>
+          <option value="재직교육생">재직교육생</option>
+          <option value="신규교육생">신규교육생</option>
+          <option value="기타">기타</option>
+        </select>
+        <input id="editPhone" type="text" placeholder="전화번호 (비워두면 유지)" class="w-full p-2 border rounded-lg text-sm">
+        <input id="editCarType" type="text" placeholder="차종 (비워두면 유지)" class="w-full p-2 border rounded-lg text-sm">
+        <select id="editEx" class="w-full p-2 border rounded-lg text-sm">
+          <option value="">예외 여부 (변경 없음)</option>
+          <option value="O">예외 (O)</option>
+          <option value="X">대상 (X)</option>
+        </select>
+        <div class="flex gap-2">
+          <button onclick="saveEditData()" class="flex-1 bg-orange-500 text-white py-2 rounded-lg font-bold">저장</button>
+          <button onclick="closeEditModal()" class="flex-1 bg-gray-400 text-white py-2 rounded-lg font-bold">취소</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getFirestore, collection, doc, getDocs, setDoc, deleteDoc, writeBatch } 
+    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyB-yJWX6qRnkWpHWLqyWyr6NFw7kQDPStA",
+    authDomain: "car-check-ae332.firebaseapp.com",
+    projectId: "car-check-ae332",
+    storageBucket: "car-check-ae332.firebasestorage.app",
+    messagingSenderId: "571761357854",
+    appId: "1:571761357854:web:f66390904bcbc00c3faa0f",
+    measurementId: "G-ME6S29Z2CJ"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  const SECRET_KEY = "MyStrongSecretKey123!";
+
+  function encrypt(text){ return CryptoJS.AES.encrypt(text, SECRET_KEY).toString(); }
+  function decrypt(cipher){ try{return CryptoJS.AES.decrypt(cipher, SECRET_KEY).toString(CryptoJS.enc.Utf8);}catch{return cipher;} }
+
+  let currentRole = null;
+  let foundElements = [];
+  let currentIndex = -1;
+
+  // --- 전역 함수 등록 (window.함수명) ---
+
+  window.openLoginModal = () => document.getElementById("loginModal").classList.remove("hidden");
+  window.closeLoginModal = () => document.getElementById("loginModal").classList.add("hidden");
+
+  window.checkLogin = function() {
+    const id = document.getElementById('loginId').value;
+    const pw = document.getElementById('loginPw').value;
+    if(id === "admin" && pw === "rydbrdnjs1!") localStorage.setItem("role", "admin");
+    else if(id === "user" && pw === "12345") localStorage.setItem("role", "user");
+    else { alert("아이디 또는 비밀번호가 틀립니다."); return; }
+    
+    window.clearAllSearch();
+    applyRole();
+    window.closeLoginModal();
+  };
+
+  window.logout = function() {
+    localStorage.removeItem("role");
+    window.clearAllSearch();
+    applyRole();
+    alert("로그아웃 되었습니다.");
+  };
+
+  window.clearAllSearch = function() {
+    document.getElementById('searchNum').value = "";
+    document.getElementById('searchResult').innerHTML = "";
+    const filterInput = document.getElementById('listFilter');
+    if(filterInput) filterInput.value = "";
+    const nav = document.getElementById('searchNav');
+    if(nav) nav.classList.add('hidden');
+    resetHighlight();
+  };
+
+  function resetHighlight() {
+    document.querySelectorAll('.delete-item').forEach(item => {
+      item.classList.remove('highlight-found', 'highlight-current');
+    });
+    foundElements = [];
+    currentIndex = -1;
+  }
+
+  window.searchCar = async function() {
+    const num = document.getElementById('searchNum').value.trim();
+    const resultDiv = document.getElementById('searchResult');
+    if (num.length !== 4) { alert("뒷자리 4자리를 입력하세요."); return; }
+    
+    resultDiv.innerHTML = "조회 중...";
+    const snap = await getDocs(collection(db, "cars"));
+    let found = false;
+    resultDiv.innerHTML = "";
+
+    const day = new Date().getDay();
+    const rules = { 1:[1,6], 2:[2,7], 3:[3,8], 4:[4,9], 5:[5,0] };
+
+    snap.forEach(docSnap => {
+      const d = docSnap.data();
+      const carNum = decrypt(d.carNum);
+      if (carNum.slice(-4) === num) {
+        found = true;
+        const last = parseInt(carNum.slice(-1));
+        const isEx = d.exception ? decrypt(d.exception) : 'X';
+        const isViolated = !isNaN(last) && rules[day] && rules[day].includes(last);
+        
+        let html = `<div class="text-left border p-4 rounded-lg mb-3 bg-gray-50 border-l-4 ${isViolated && isEx === 'X' ? 'border-l-red-500' : 'border-l-blue-500'}">
+          <p><b>이름:</b> ${decrypt(d.name)}</p>
+          <p><b>소속:</b> ${decrypt(d.org)}</p>`;
+        if(currentRole === 'admin') html += `<p><b>전화번호:</b> ${decrypt(d.phone)}</p>`;
+        html += `<p><b>차량번호:</b> ${carNum}</p><p><b>차종:</b> ${decrypt(d.carType)}</p>`;
+        if (isEx === 'O') html += `<p class="mt-2 text-blue-600 font-bold">● 차량5부제 예외대상 (O)</p>`;
+        else if (isViolated) html += `<p class="mt-2 text-red-600 font-bold">● 차량5부제 위반 (오늘 제한)</p>`;
+        html += `</div>`;
+        resultDiv.innerHTML += html;
+      }
+    });
+    if(!found) resultDiv.innerHTML = "검색 결과가 없습니다.";
+  };
+
+  window.loadSelectDeleteList = async function() {
+    const listDiv = document.getElementById("selectDeleteList");
+    if(!listDiv || currentRole !== 'admin') return;
+    const snap = await getDocs(collection(db, "cars"));
+    listDiv.innerHTML = "";
+    snap.forEach(docSnap => {
+      const d = docSnap.data();
+      const n = decrypt(d.name), o = decrypt(d.org), t = decrypt(d.carType), c = decrypt(d.carNum), p = decrypt(d.phone), ex = d.exception ? decrypt(d.exception) : 'X';
+      listDiv.innerHTML += `
+        <label class="flex items-start space-x-2 border-b py-2 px-1 delete-item" data-search="${n}${o}${t}${c}${p}${ex}">
+          <input type="checkbox" value="${docSnap.id}" class="deleteCheckbox mt-1 w-5 h-5" 
+                 data-name="${n}" data-org="${o}" data-phone="${p}" data-cartype="${t}" data-ex="${ex}">
+          <div class="text-xs leading-relaxed">
+            <span class="font-bold text-sm text-blue-700">${n}</span> | <span>${o}</span> | <span>${t}</span> | <span class="font-medium text-gray-800">${c}</span> | <span class="font-bold text-orange-600">[${ex}]</span>
+          </div>
+        </label>`;
+    });
+  };
+
+  window.openEditModal = function() {
+    const checks = document.querySelectorAll(".deleteCheckbox:checked");
+    if(checks.length === 0) { alert("수정할 항목을 선택해주세요."); return; }
+    document.getElementById('editCount').innerText = checks.length;
+    if(checks.length === 1) {
+      const cb = checks[0];
+      document.getElementById('editName').value = cb.dataset.name;
+      document.getElementById('editOrg').value = cb.dataset.org;
+      document.getElementById('editPhone').value = cb.dataset.phone;
+      document.getElementById('editCarType').value = cb.dataset.cartype;
+      document.getElementById('editEx').value = cb.dataset.ex;
+    } else {
+      document.getElementById('editName').value = "";
+      document.getElementById('editOrg').value = "";
+      document.getElementById('editPhone').value = "";
+      document.getElementById('editCarType').value = "";
+      document.getElementById('editEx').value = "";
+    }
+    document.getElementById('editModal').classList.remove('hidden');
+  };
+
+  window.closeEditModal = () => document.getElementById('editModal').classList.add('hidden');
+
+  window.saveEditData = async function() {
+    const checks = document.querySelectorAll(".deleteCheckbox:checked");
+    const n = document.getElementById('editName').value.trim();
+    const o = document.getElementById('editOrg').value;
+    const p = document.getElementById('editPhone').value.trim();
+    const t = document.getElementById('editCarType').value.trim();
+    const ex = document.getElementById('editEx').value;
+
+    const batch = writeBatch(db);
+    checks.forEach(c => {
+      const docRef = doc(db, "cars", c.value);
+      const up = {};
+      if(n) up.name = encrypt(n);
+      if(o) up.org = encrypt(o);
+      if(p) up.phone = encrypt(p);
+      if(t) up.carType = encrypt(t);
+      if(ex) up.exception = encrypt(ex);
+      if(Object.keys(up).length > 0) batch.update(docRef, up);
+    });
+
+    await batch.commit();
+    alert("수정 완료");
+    window.closeEditModal();
+    window.loadSelectDeleteList();
+  };
+
+  window.deleteSelectedData = async function() {
+    const checks = document.querySelectorAll(".deleteCheckbox:checked");
+    if(checks.length === 0) return;
+    if(!confirm("삭제하시겠습니까?")) return;
+    for(let c of checks) await deleteDoc(doc(db, "cars", c.value));
+    window.loadSelectDeleteList();
+  };
+
+  window.saveData = async function() {
+    const cn = document.getElementById('carNum').value.trim();
+    if(!cn) return;
+    await setDoc(doc(db,"cars",cn), {
+      name: encrypt(document.getElementById('name').value),
+      org: encrypt(document.getElementById('org').value),
+      phone: encrypt(document.getElementById('phone').value),
+      carNum: encrypt(cn),
+      carType: encrypt(document.getElementById('carType').value),
+      exception: encrypt(document.getElementById('isException').value)
+    });
+    alert("등록 완료");
+    window.loadSelectDeleteList();
+  };
+
+  window.uploadExcel = async () => {
+    const file = document.getElementById("excelFile").files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const rows = XLSX.utils.sheet_to_json(XLSX.read(new Uint8Array(e.target.result), {type:"array"}).Sheets[XLSX.read(new Uint8Array(e.target.result), {type:"array"}).SheetNames[0]]);
+      for (const r of rows) {
+        const cn = String(r["차량번호"] || "");
+        if(!cn) continue;
+        await setDoc(doc(db, "cars", cn), {
+          name:encrypt(String(r["이름"]||"")), org:encrypt(String(r["소속"]||"")), phone:encrypt(String(r["전화번호"]||"")),
+          carNum:encrypt(cn), carType:encrypt(String(r["차종"]||"")), exception:encrypt(r["차량5부제 예외"] === "O" ? "O" : "X")
+        });
+      }
+      alert("업로드 완료"); window.loadSelectDeleteList();
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
+  window.exportCurrentData = async function() {
+    const snap = await getDocs(collection(db,"cars"));
+    const data = [["이름", "소속", "전화번호", "차량번호", "차종", "차량5부제 예외"]];
+    snap.forEach(docSnap => {
+      const d = docSnap.data();
+      data.push([decrypt(d.name), decrypt(d.org), decrypt(d.phone), decrypt(d.carNum), decrypt(d.carType), d.exception ? decrypt(d.exception) : "X"]);
+    });
+    XLSX.writeFile({SheetNames:["현황"], Sheets:{"현황":XLSX.utils.aoa_to_sheet(data)}}, "차량현황.xlsx");
+  };
+
+  window.initListSearch = function() {
+    resetHighlight();
+    const val = document.getElementById('listFilter').value.toLowerCase().trim();
+    if(!val) { document.getElementById('searchNav').classList.add('hidden'); return; }
+    document.querySelectorAll('.delete-item').forEach(item => {
+      if(item.dataset.search.toLowerCase().includes(val)) {
+        item.classList.add('highlight-found');
+        foundElements.push(item);
+      }
+    });
+    if(foundElements.length > 0) {
+      document.getElementById('searchNav').classList.remove('hidden');
+      currentIndex = 0;
+      updateSearchUI();
+    }
+  };
+
+  function updateSearchUI() {
+    foundElements.forEach(el => el.classList.remove('highlight-current'));
+    foundElements[currentIndex].classList.add('highlight-current');
+    foundElements[currentIndex].scrollIntoView({ behavior: 'smooth', block: 'center' });
+    document.getElementById('searchCount').innerText = `${currentIndex + 1} / ${foundElements.length}`;
+  }
+
+  window.nextSearchItem = () => { if(foundElements.length) { currentIndex = (currentIndex + 1) % foundElements.length; updateSearchUI(); }};
+  window.prevSearchItem = () => { if(foundElements.length) { currentIndex = (currentIndex - 1 + foundElements.length) % foundElements.length; updateSearchUI(); }};
+
+  function applyRole(){
+    const role = localStorage.getItem("role");
+    currentRole = role;
+    document.getElementById("searchBtn").disabled = !role;
+    document.getElementById("adminMenu").classList.toggle("hidden", role !== "admin");
+    document.getElementById("loginBtn").classList.toggle("hidden", !!role);
+    document.getElementById("logoutBtn").classList.toggle("hidden", !role);
+    if(role === "admin") window.loadSelectDeleteList();
+  }
+
+  window.onload = applyRole;
+</script>
+</body>
+</html>
