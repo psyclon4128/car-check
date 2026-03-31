@@ -14,7 +14,10 @@
     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     details[open] summary ~ * { animation: sweep .3s ease-in-out; }
     @keyframes sweep { from {opacity: 0; margin-top: -10px;} to {opacity: 1; margin-top: 0;} }
-    .highlight-item { background-color: #fef08a; border-radius: 4px; transition: background-color 0.3s; }
+    
+    /* 검색 강조 스타일 */
+    .highlight-found { background-color: #fef08a; border-radius: 4px; } /* 검색된 모든 항목 */
+    .highlight-current { background-color: #facc15 !important; border: 2px solid #eab308; } /* 현재 선택된 항목 */
   </style>
 </head>
 <body class="bg-gray-100 p-4 overflow-x-hidden relative min-h-screen flex flex-col">
@@ -78,14 +81,21 @@
       <details class="accordion" id="dataManagementDetails">
         <summary class="cursor-pointer text-lg font-semibold bg-gray-200 p-3 rounded-lg">데이터 관리 (선택 삭제)</summary>
         <div class="mt-3 space-y-3">
-          <div class="flex flex-col gap-1">
-            <label class="text-xs text-gray-500 font-bold">목록 내 검색 (이름/소속/차종/번호/전화번호)</label>
-            <input id="listFilter" type="text" placeholder="항목 입력 시 자동으로 이동 및 강조" 
-                   class="w-full p-2 border rounded-lg text-sm bg-blue-5" onkeyup="filterDeleteList()">
+          <div class="flex flex-col gap-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
+            <label class="text-xs text-blue-700 font-bold">목록 내 검색 (이름/소속/차종/번호/전화번호)</label>
+            <div class="flex items-center gap-2">
+              <input id="listFilter" type="text" placeholder="검색어 입력..." 
+                     class="flex-1 p-2 border rounded-lg text-sm" oninput="initListSearch()">
+              <div id="searchNav" class="hidden flex items-center gap-2">
+                <span id="searchCount" class="text-xs font-bold text-gray-600 min-w-[40px] text-center">0 / 0</span>
+                <button onclick="prevSearchItem()" class="p-1 bg-white border rounded hover:bg-gray-100 text-xs">▲</button>
+                <button onclick="nextSearchItem()" class="p-1 bg-white border rounded hover:bg-gray-100 text-xs">▼</button>
+              </div>
+            </div>
           </div>
           <div id="selectDeleteList" class="max-h-80 overflow-y-auto border p-2 rounded bg-gray-50 space-y-1"></div>
           <button onclick="deleteSelectedData()" class="w-full bg-red-400 text-white py-3 rounded-lg text-lg">선택한 항목 삭제</button>
-          <button onclick="deleteAllData()" class="w-full bg-red-700 text-white py-2 rounded-lg text-sm font-bold mt-4">데이터 전체 초기화(삭제)</button>
+          <button onclick="deleteAllData()" class="w-full bg-red-700 text-white py-2 rounded-lg text-sm font-bold mt-4">데이터 전체 삭제</button>
         </div>
       </details>
     </section>
@@ -129,18 +139,83 @@
   function decrypt(cipher){ try{return CryptoJS.AES.decrypt(cipher, SECRET_KEY).toString(CryptoJS.enc.Utf8);}catch{return cipher;} }
 
   let currentRole = null;
+  let foundElements = []; // 검색된 엘리먼트 배열
+  let currentIndex = -1;  // 현재 가리키는 인덱스
 
-  // 모든 검색 및 필터링 UI 초기화
   function clearAllSearch() {
     document.getElementById('searchNum').value = "";
     document.getElementById('searchResult').innerHTML = "";
     const filterInput = document.getElementById('listFilter');
     if(filterInput) filterInput.value = "";
-    const items = document.querySelectorAll('.delete-item');
-    items.forEach(item => item.classList.remove('highlight-item'));
+    document.getElementById('searchNav').classList.add('hidden');
+    resetHighlight();
   }
 
-  // 차량 조회 로직
+  function resetHighlight() {
+    const items = document.querySelectorAll('.delete-item');
+    items.forEach(item => {
+      item.classList.remove('highlight-found');
+      item.classList.remove('highlight-current');
+    });
+    foundElements = [];
+    currentIndex = -1;
+  }
+
+  // 윈도우 검색창 스타일 초기화 및 필터링
+  window.initListSearch = function() {
+    resetHighlight();
+    const val = document.getElementById('listFilter').value.toLowerCase().trim();
+    const nav = document.getElementById('searchNav');
+    const counter = document.getElementById('searchCount');
+
+    if (!val) {
+      nav.classList.add('hidden');
+      return;
+    }
+
+    const items = document.querySelectorAll('.delete-item');
+    items.forEach(item => {
+      if (item.getAttribute('data-search').toLowerCase().includes(val)) {
+        item.classList.add('highlight-found');
+        foundElements.push(item);
+      }
+    });
+
+    if (foundElements.length > 0) {
+      nav.classList.remove('hidden');
+      currentIndex = 0;
+      updateSearchUI();
+    } else {
+      nav.classList.add('hidden');
+      counter.innerText = "0 / 0";
+    }
+  }
+
+  function updateSearchUI() {
+    // 모든 현재 강조 제거
+    foundElements.forEach(el => el.classList.remove('highlight-current'));
+    
+    // 현재 인덱스 강조 및 이동
+    const currentEl = foundElements[currentIndex];
+    currentEl.classList.add('highlight-current');
+    currentEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    
+    // 카운터 업데이트
+    document.getElementById('searchCount').innerText = `${currentIndex + 1} / ${foundElements.length}`;
+  }
+
+  window.nextSearchItem = function() {
+    if (foundElements.length === 0) return;
+    currentIndex = (currentIndex + 1) % foundElements.length;
+    updateSearchUI();
+  }
+
+  window.prevSearchItem = function() {
+    if (foundElements.length === 0) return;
+    currentIndex = (currentIndex - 1 + foundElements.length) % foundElements.length;
+    updateSearchUI();
+  }
+
   window.searchCar = async function() {
     const num = document.getElementById('searchNum').value.trim();
     const resultDiv = document.getElementById('searchResult');
@@ -173,11 +248,8 @@
           <p><b>소속:</b> ${decrypt(d.org)}</p>`;
         if(currentRole === 'admin') html += `<p><b>전화번호:</b> ${decrypt(d.phone)}</p>`;
         html += `<p><b>차량번호:</b> ${carNum}</p><p><b>차종:</b> ${decrypt(d.carType)}</p>`;
-        
         if (isEx === 'O') html += `<p class="mt-2 text-blue-600 font-bold">● 차량5부제 예외대상</p>`;
         else if (isViolated) html += `<p class="mt-2 text-red-600 font-bold">● 차량5부제 위반 (오늘 제한)</p>`;
-        
-        if(expire) html += `<p><b>만료일:</b> ${expire}</p>`;
         html += `</div>`;
         resultDiv.innerHTML += html;
       }
@@ -185,23 +257,6 @@
     if(!found) resultDiv.innerHTML = "검색 결과가 없습니다.";
   }
 
-  // 관리자 목록 필터링 및 자동 이동
-  window.filterDeleteList = function() {
-    const val = document.getElementById('listFilter').value.toLowerCase().trim();
-    const items = document.querySelectorAll('.delete-item');
-    
-    items.forEach(item => {
-      const text = item.getAttribute('data-search').toLowerCase();
-      if(val && text.includes(val)) {
-        item.classList.add('highlight-item');
-        item.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      } else {
-        item.classList.remove('highlight-item');
-      }
-    });
-  }
-
-  // 선택 삭제 목록 생성 (순서: 이름 / 소속 / 차종 / 차량번호 / 전화번호)
   window.loadSelectDeleteList = async function(){
     const listDiv = document.getElementById("selectDeleteList");
     if(!listDiv || currentRole !== 'admin') return;
@@ -209,30 +264,21 @@
     listDiv.innerHTML = "";
     snap.forEach(docSnap => {
       const d = docSnap.data();
-      const n = decrypt(d.name);
-      const o = decrypt(d.org);
-      const t = decrypt(d.carType);
-      const c = decrypt(d.carNum);
-      const p = decrypt(d.phone);
-
+      const n = decrypt(d.name), o = decrypt(d.org), t = decrypt(d.carType), c = decrypt(d.carNum), p = decrypt(d.phone);
       listDiv.innerHTML += `
         <label class="flex items-start space-x-2 border-b py-2 px-1 delete-item" data-search="${n}${o}${t}${c}${p}">
           <input type="checkbox" value="${docSnap.id}" class="deleteCheckbox mt-1 w-5 h-5">
           <div class="text-xs leading-relaxed">
-            <span class="font-bold text-sm text-blue-700">${n}</span> | 
-            <span>${o}</span> | 
-            <span>${t}</span> | 
-            <span class="font-medium text-gray-800">${c}</span> | 
-            <span class="text-gray-500">${p}</span>
+            <span class="font-bold text-sm text-blue-700">${n}</span> | <span>${o}</span> | <span>${t}</span> | 
+            <span class="font-medium text-gray-800">${c}</span> | <span class="text-gray-500">${p}</span>
           </div>
         </label>`;
     });
-    if(snap.empty) listDiv.innerHTML = "<p class='text-center text-gray-400 py-4'>데이터가 없습니다.</p>";
   }
 
   window.deleteSelectedData = async function() {
     const checks = document.querySelectorAll(".deleteCheckbox:checked");
-    if(checks.length === 0) { alert("삭제할 차량을 체크해주세요."); return; }
+    if(checks.length === 0) { alert("항목을 체크해주세요."); return; }
     if(!confirm(`${checks.length}건을 삭제하시겠습니까?`)) return;
     for(let c of checks) await deleteDoc(doc(db, "cars", c.value));
     alert("삭제 완료");
@@ -245,33 +291,31 @@
     const batch = writeBatch(db);
     snap.forEach(d => batch.delete(d.ref));
     await batch.commit();
-    alert("전체 데이터 삭제 완료");
+    alert("전체 삭제 완료");
     loadSelectDeleteList();
     clearAllSearch();
   }
 
   window.saveData = async function(){
     const cn = document.getElementById('carNum').value.trim();
-    if(!cn) {alert("차량번호를 입력하세요."); return;}
+    if(!cn) return;
     await setDoc(doc(db,"cars",cn), {
       name: encrypt(document.getElementById('name').value),
       org: encrypt(document.getElementById('org').value),
       phone: encrypt(document.getElementById('phone').value),
       carNum: encrypt(cn),
       carType: encrypt(document.getElementById('carType').value),
-      exception: encrypt(document.getElementById('isException').value),
-      expireDate: null // 출입기간 옵션은 단순화를 위해 생략하거나 필요시 추가 가능
+      exception: encrypt(document.getElementById('isException').value)
     });
     alert("등록 완료");
     loadSelectDeleteList();
   }
 
   window.checkLogin=function(){
-    const id=document.getElementById('loginId').value;
-    const pw=document.getElementById('loginPw').value;
+    const id=document.getElementById('loginId').value, pw=document.getElementById('loginPw').value;
     if(id==="admin"&&pw==="rydbrdnjs1!") localStorage.setItem("role","admin");
     else if(id==="user"&&pw==="12345") localStorage.setItem("role","user");
-    else { alert("정보가 틀립니다."); return; }
+    else { alert("실패"); return; }
     clearAllSearch();
     applyRole(); 
     closeLoginModal();
@@ -279,23 +323,22 @@
   
   window.logout=function(){ 
     localStorage.removeItem("role"); 
-    clearAllSearch(); // 로그아웃 시 검색어, 결과, 필터 모두 초기화
+    clearAllSearch();
     applyRole(); 
     alert("로그아웃 되었습니다."); 
   }
 
   window.exportCurrentData = async function(){
     const snap=await getDocs(collection(db,"cars"));
-    const data = [["이름", "소속", "전화번호", "차량번호", "차종", "차량5부제 예외", "출입기간"]];
+    const data = [["이름", "소속", "전화번호", "차량번호", "차종", "차량5부제 예외"]];
     snap.forEach(docSnap=>{
       const d=docSnap.data();
-      data.push([decrypt(d.name), decrypt(d.org), decrypt(d.phone), decrypt(d.carNum), decrypt(d.carType), d.exception?decrypt(d.exception):"X", "항상"]);
+      data.push([decrypt(d.name), decrypt(d.org), decrypt(d.phone), decrypt(d.carNum), decrypt(d.carType), d.exception?decrypt(d.exception):"X"]);
     });
     const ws = XLSX.utils.aoa_to_sheet(data);
-    ws['!dataValidation'] = [{ sqref: `F2:F2000`, type: 'list', formula1: '"O,X"', showDropDown: true }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "현황");
-    XLSX.writeFile(wb, "차량현황_조회데이터.xlsx");
+    XLSX.writeFile(wb, "차량현황.xlsx");
   }
 
   window.uploadExcel = async () => {
@@ -311,8 +354,7 @@
         await setDoc(doc(db, "cars", cn), {
           name:encrypt(String(r["이름"]||"")), org:encrypt(String(r["소속"]||"")), phone:encrypt(String(r["전화번호"]||"")),
           carNum:encrypt(cn), carType:encrypt(String(r["차종"]||"")),
-          exception:encrypt(r["차량5부제 예외"] === "O" ? "O" : "X"),
-          expireDate: null
+          exception:encrypt(r["차량5부제 예외"] === "O" ? "O" : "X")
         });
       }
       alert("업로드 완료"); loadSelectDeleteList();
