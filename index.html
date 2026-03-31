@@ -16,126 +16,91 @@
     @keyframes sweep { from {opacity: 0; margin-top: -10px;} to {opacity: 1; margin-top: 0;} }
   </style>
 </head>
-
 <body class="bg-gray-100 p-4 overflow-x-hidden relative min-h-screen flex flex-col">
 
-  <div class="w-full max-w-screen-sm mx-auto bg-white p-6 rounded-xl shadow-md flex-1 relative">
-    <!-- 제목 + 로그인 버튼 -->
-    <div class="mb-4 flex flex-col items-center relative">
-      <a href="https://car-check.onrender.com/" target="_blank"><img src="국세공무원교육원.png" class="w-40 mb-1"></a>
-      <h1 class="text-xl font-bold text-center">차량조회·등록</h1>
-      <div class="absolute top-0 right-0 text-sm">
-        <button id="loginBtn" onclick="openLoginModal()" class="text-blue-600 underline">로그인</button>
-        <button id="logoutBtn" onclick="logout()" class="hidden text-red-600 underline">로그아웃</button>
-      </div>
-    </div>
+<div class="w-full max-w-screen-sm mx-auto bg-white p-6 rounded-xl shadow-md flex-1 relative">
 
-    <!-- 검색 -->
-    <section class="mb-6">
-      <h2 class="text-lg font-semibold mb-2">차량번호 검색</h2>
-      <input id="searchNum" type="text" placeholder="차량번호 뒷자리 4자리" maxlength="4" class="w-full p-3 border rounded-lg mb-3 text-lg">
-      <button id="searchBtn" onclick="searchCar()" class="w-full bg-blue-500 text-white py-3 rounded-lg text-lg" disabled>검색 (로그인 필요)</button>
-      <div id="searchResult" class="mt-4 text-lg"></div>
-    </section>
-
-    <!-- 관리자 -->
-    <section id="adminMenu" class="hidden space-y-4">
-      <details>
-        <summary class="cursor-pointer text-lg font-semibold bg-gray-200 p-3 rounded-lg">신규 등록</summary>
-        <div class="mt-3">
-          <input id="name" type="text" placeholder="이름" class="w-full p-3 border rounded-lg mb-3 text-lg">
-          <input id="phone" type="text" placeholder="전화번호" class="w-full p-3 border rounded-lg mb-3 text-lg">
-          <input id="carNum" type="text" placeholder="차량번호" class="w-full p-3 border rounded-lg mb-3 text-lg">
-          <input id="carType" type="text" placeholder="차종" class="w-full p-3 border rounded-lg mb-3 text-lg">
-
-          <!-- 🔥 추가 -->
-          <label class="block mb-2 text-lg">차량5부제 예외</label>
-          <select id="fiveNo" class="w-full p-3 border rounded-lg mb-3 text-lg">
-            <option value="N">해당없음</option>
-            <option value="Y">예외</option>
-          </select>
-
-          <button onclick="saveData()" class="w-full bg-green-500 text-white py-3 rounded-lg text-lg">등록</button>
-        </div>
-      </details>
-    </section>
+<!-- 제목 + 로그인 -->
+<div class="mb-4 flex flex-col items-center relative">
+  <h1 class="text-xl font-bold text-center">차량조회·등록</h1>
+  <div class="absolute top-0 right-0 text-sm">
+    <button id="loginBtn" onclick="openLoginModal()" class="text-blue-600 underline">로그인</button>
+    <button id="logoutBtn" onclick="logout()" class="hidden text-red-600 underline">로그아웃</button>
   </div>
+</div>
+
+<!-- 검색 -->
+<section class="mb-6">
+  <input id="searchNum" type="text" placeholder="차량번호 뒷자리 4자리" maxlength="4" class="w-full p-3 border rounded-lg mb-3 text-lg">
+  <button id="searchBtn" onclick="searchCar()" class="w-full bg-blue-500 text-white py-3 rounded-lg text-lg" disabled>검색 (로그인 필요)</button>
+  <div id="searchResult" class="mt-4 text-lg"></div>
+</section>
+
+<!-- 관리자 -->
+<section id="adminMenu" class="hidden space-y-4">
+  <details>
+    <summary class="cursor-pointer text-lg font-semibold bg-gray-200 p-3 rounded-lg">신규 등록</summary>
+    <div class="mt-3">
+      <input id="name" type="text" placeholder="이름" class="w-full p-3 border rounded-lg mb-3 text-lg">
+      <input id="phone" type="text" placeholder="전화번호" class="w-full p-3 border rounded-lg mb-3 text-lg">
+      <input id="carNum" type="text" placeholder="차량번호" class="w-full p-3 border rounded-lg mb-3 text-lg">
+      <input id="carType" type="text" placeholder="차종" class="w-full p-3 border rounded-lg mb-3 text-lg">
+
+      <!-- ★ 추가 -->
+      <label class="block mb-2 text-lg">차량5부제 예외</label>
+      <select id="fiveNo" class="w-full p-3 border rounded-lg mb-3 text-lg">
+        <option value="N">해당없음</option>
+        <option value="Y">예외</option>
+      </select>
+
+      <button onclick="saveData()" class="w-full bg-green-500 text-white py-3 rounded-lg text-lg">등록</button>
+    </div>
+  </details>
+</section>
+
+</div>
+
+<!-- 로그인 모달 -->
+<div id="loginModal" class="hidden fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center">
+  <div class="bg-white p-6 rounded-lg w-80">
+    <input id="loginId" placeholder="아이디" class="w-full p-2 border mb-2">
+    <input id="loginPw" type="password" placeholder="비밀번호" class="w-full p-2 border mb-2">
+    <button onclick="checkLogin()" class="w-full bg-blue-500 text-white p-2 rounded">로그인</button>
+  </div>
+</div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getFirestore, collection, doc, getDocs, setDoc, deleteDoc } 
-from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getFirestore, collection, doc, getDocs, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-const firebaseConfig = {
+const app = initializeApp({
   apiKey: "AIzaSy...",
-  authDomain: "car-check-ae332.firebaseapp.com",
   projectId: "car-check-ae332"
-};
-
-const app = initializeApp(firebaseConfig);
+});
 const db = getFirestore(app);
 
 const SECRET_KEY = "MyStrongSecretKey123!";
+function encrypt(t){ return CryptoJS.AES.encrypt(t, SECRET_KEY).toString(); }
+function decrypt(t){ return CryptoJS.AES.decrypt(t, SECRET_KEY).toString(CryptoJS.enc.Utf8); }
 
-function encrypt(text){ return CryptoJS.AES.encrypt(text, SECRET_KEY).toString(); }
-function decrypt(cipher){ try{return CryptoJS.AES.decrypt(cipher, SECRET_KEY).toString(CryptoJS.enc.Utf8);}catch{return cipher;} }
+let currentRole=null;
 
-let currentRole = null;
-
-/* 🔥 차량5부제 함수 */
+/* ★ 차량5부제 */
 function checkFiveDay(carNum, fiveNo){
   if(fiveNo==="Y") return "예외";
   const last = carNum.slice(-1);
   const day = new Date().getDay();
-  const map = {
-    1:["1","6"],
-    2:["2","7"],
-    3:["3","8"],
-    4:["4","9"],
-    5:["5","0"]
-  };
+  const map = {1:["1","6"],2:["2","7"],3:["3","8"],4:["4","9"],5:["5","0"]};
   if(map[day] && map[day].includes(last)) return "위반";
   return "정상";
 }
 
-window.searchCar = async function() {
-  const num = document.getElementById('searchNum').value.trim();
-  const resultDiv = document.getElementById('searchResult');
-  resultDiv.innerHTML = "";
-
-  const snap = await getDocs(collection(db, "cars"));
-
-  snap.forEach(docSnap=>{
-    const d = docSnap.data();
-    const carNum = decrypt(d.carNum);
-
-    if(carNum.slice(-4) === num){
-      const fiveNo = d.fiveNo ? decrypt(d.fiveNo) : "N";
-      const status = checkFiveDay(carNum, fiveNo);
-
-      let fiveText="";
-      if(status==="예외"){
-        fiveText="<p class='text-green-600'><b>차량5부제:</b> 예외</p>";
-      }else if(status==="위반"){
-        fiveText="<p class='text-red-600'><b>차량5부제:</b> 위반</p>";
-      }
-
-      resultDiv.innerHTML += `
-      <div class="border p-3 rounded-lg mb-3 bg-gray-50 text-lg">
-        <p><b>이름:</b> ${decrypt(d.name)}</p>
-        <p><b>차량번호:</b> ${carNum}</p>
-        ${fiveText}
-      </div>`;
-    }
-  });
-}
-
-window.saveData = async function(){
-  const name=document.getElementById('name').value;
-  const phone=document.getElementById('phone').value;
-  const carNum=document.getElementById('carNum').value;
-  const carType=document.getElementById('carType').value;
-  const fiveNo=document.getElementById('fiveNo').value;
+window.saveData=async ()=>{
+  const name=nameEl.value;
+  const phone=phoneEl.value;
+  const carNum=carNumEl.value;
+  const carType=carTypeEl.value;
+  const fiveNo=document.getElementById("fiveNo").value;
 
   await setDoc(doc(db,"cars",carNum),{
     name:encrypt(name),
@@ -144,9 +109,47 @@ window.saveData = async function(){
     carType:encrypt(carType),
     fiveNo:encrypt(fiveNo)
   });
+  alert("등록 완료");
+};
 
-  alert("등록 완료!");
-}
+window.searchCar=async ()=>{
+  const num=searchNum.value;
+  const snap=await getDocs(collection(db,"cars"));
+  searchResult.innerHTML="";
+
+  snap.forEach(d=>{
+    const data=d.data();
+    const carNum=decrypt(data.carNum);
+
+    if(carNum.slice(-4)===num){
+      const fiveNo=data.fiveNo?decrypt(data.fiveNo):"N";
+      const status=checkFiveDay(carNum,fiveNo);
+
+      let txt="";
+      if(status==="위반") txt="<p class='text-red-600'>차량5부제 위반</p>";
+      if(status==="예외") txt="<p class='text-green-600'>차량5부제 예외</p>";
+
+      searchResult.innerHTML+=`
+      <div class="border p-3 mb-2">
+        <p>${decrypt(data.name)}</p>
+        <p>${carNum}</p>
+        ${txt}
+      </div>`;
+    }
+  });
+};
+
+window.checkLogin=()=>{
+  if(loginId.value==="admin"&&loginPw.value==="1234"){
+    currentRole="admin";
+    adminMenu.classList.remove("hidden");
+    searchBtn.disabled=false;
+  }
+  loginModal.classList.add("hidden");
+};
+
+window.openLoginModal=()=>loginModal.classList.remove("hidden");
+window.logout=()=>location.reload();
 
 </script>
 </body>
