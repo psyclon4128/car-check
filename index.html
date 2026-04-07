@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
@@ -23,7 +23,7 @@
   <div class="w-full max-w-screen-sm mx-auto bg-white p-6 rounded-xl shadow-md flex-1 relative">
     <div class="mb-4 flex flex-col items-center relative">
       <a href="https://car-check.onrender.com/" target="_blank"><img src="국세공무원교육원.png" alt="국세공무원교육원" class="w-40 max-w-full mb-1"></a>
-      <h1 class="text-xl font-bold text-center">차량조회·등록</h1>
+      <h1 class="text-xl font-bold text-center">차량조회·등록 (2부제)</h1>
       <div class="absolute top-0 right-0 text-sm">
         <button id="loginBtn" onclick="openLoginModal()" class="text-blue-600 underline">로그인</button>
         <button id="logoutBtn" onclick="logout()" class="hidden text-red-600 underline">로그아웃</button>
@@ -56,7 +56,7 @@
           <input id="phone" type="text" placeholder="전화번호" class="w-full p-3 border rounded-lg text-lg">
           <input id="carNum" type="text" placeholder="차량번호" class="w-full p-3 border rounded-lg text-lg">
           <input id="carType" type="text" placeholder="차종" class="w-full p-3 border rounded-lg text-lg">
-          <label class="block text-sm font-medium text-gray-600">차량5부제 예외</label>
+          <label class="block text-sm font-medium text-gray-600">차량2부제 예외</label>
           <select id="isException" class="w-full p-3 border rounded-lg text-lg">
             <option value="X">X</option>
             <option value="O">O</option>
@@ -211,6 +211,7 @@
     currentIndex = -1;
   }
 
+  // 핵심 수정 부분: 차량 2부제(홀짝제) 로직
   window.searchCar = async function() {
     const num = document.getElementById('searchNum').value.trim();
     const resultDiv = document.getElementById('searchResult');
@@ -221,25 +222,33 @@
     let found = false;
     resultDiv.innerHTML = "";
 
-    const day = new Date().getDay();
-    const rules = { 1:[1,6], 2:[2,7], 3:[3,8], 4:[4,9], 5:[5,0] };
+    // 날짜 및 홀짝 판별
+    const today = new Date().getDate(); // 현재 일자
+    const isTodayEven = today % 2 === 0; // 오늘이 짝수날인가?
 
     snap.forEach(docSnap => {
       const d = docSnap.data();
       const carNum = decrypt(d.carNum);
       if (carNum.slice(-4) === num) {
         found = true;
-        const last = parseInt(carNum.slice(-1));
+        const lastDigit = parseInt(carNum.slice(-1));
+        const isCarEven = lastDigit % 2 === 0; // 차량번호 끝자리가 짝수인가?
         const isEx = d.exception ? decrypt(d.exception) : 'X';
-        const isViolated = !isNaN(last) && rules[day] && rules[day].includes(last);
+        
+        // 위반 여부: 오늘이 짝수인데 차가 홀수거나, 오늘이 홀수인데 차가 짝수인 경우
+        const isViolated = isTodayEven !== isCarEven;
         
         let html = `<div class="text-left border p-4 rounded-lg mb-3 bg-gray-50 border-l-4 ${isViolated && isEx === 'X' ? 'border-l-red-500' : 'border-l-blue-500'}">
           <p><b>이름:</b> ${decrypt(d.name)}</p>
           <p><b>소속:</b> ${decrypt(d.org)}</p>`;
         if(currentRole === 'admin') html += `<p><b>전화번호:</b> ${decrypt(d.phone)}</p>`;
         html += `<p><b>차량번호:</b> ${carNum}</p><p><b>차종:</b> ${decrypt(d.carType)}</p>`;
-        if (isEx === 'O') html += `<p class="mt-2 text-blue-600 font-bold">● 차량5부제 예외대상 (O)</p>`;
-        else if (isViolated) html += `<p class="mt-2 text-red-600 font-bold">● 차량5부제 위반 (오늘 제한)</p>`;
+        
+        if (isEx === 'O') {
+          html += `<p class="mt-2 text-blue-600 font-bold">● 차량2부제 제외대상 (O)</p>`;
+        } else if (isViolated) {
+          html += `<p class="mt-2 text-red-600 font-bold">● 차량2부제 위반 (${isTodayEven ? '짝수' : '홀수'}일 운행불가)</p>`;
+        }
         html += `</div>`;
         resultDiv.innerHTML += html;
       }
@@ -360,7 +369,7 @@
         if(!cn) continue;
         await setDoc(doc(db, "cars", cn), {
           name:encrypt(String(r["이름"]||"")), org:encrypt(String(r["소속"]||"")), phone:encrypt(String(r["전화번호"]||"")),
-          carNum:encrypt(cn), carType:encrypt(String(r["차종"]||"")), exception:encrypt(r["차량5부제 예외"] === "O" ? "O" : "X")
+          carNum:encrypt(cn), carType:encrypt(String(r["차종"]||"")), exception:encrypt(r["차량2부제 예외"] === "O" ? "O" : "X")
         });
       }
       alert("업로드 완료"); window.loadSelectDeleteList();
@@ -370,7 +379,7 @@
 
   window.exportCurrentData = async function() {
     const snap = await getDocs(collection(db,"cars"));
-    const data = [["이름", "소속", "전화번호", "차량번호", "차종", "차량5부제 예외"]];
+    const data = [["이름", "소속", "전화번호", "차량번호", "차종", "차량2부제 예외"]];
     snap.forEach(docSnap => {
       const d = docSnap.data();
       data.push([decrypt(d.name), decrypt(d.org), decrypt(d.phone), decrypt(d.carNum), decrypt(d.carType), d.exception ? decrypt(d.exception) : "X"]);
