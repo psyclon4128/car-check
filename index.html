@@ -23,7 +23,7 @@
   <div class="w-full max-w-screen-sm mx-auto bg-white p-6 rounded-xl shadow-md flex-1 relative">
     <div class="mb-4 flex flex-col items-center relative">
       <a href="https://car-check.onrender.com/" target="_blank"><img src="국세공무원교육원.png" alt="국세공무원교육원" class="w-40 max-w-full mb-1"></a>
-      <h1 class="text-xl font-bold text-center">차량조회·등록 (2부제)</h1>
+      <h1 class="text-xl font-bold text-center">차량조회·등록 (부제 관리)</h1>
       <div class="absolute top-0 right-0 text-sm">
         <button id="loginBtn" onclick="openLoginModal()" class="text-blue-600 underline">로그인</button>
         <button id="logoutBtn" onclick="logout()" class="hidden text-red-600 underline">로그아웃</button>
@@ -56,7 +56,7 @@
           <input id="phone" type="text" placeholder="전화번호" class="w-full p-3 border rounded-lg text-lg">
           <input id="carNum" type="text" placeholder="차량번호" class="w-full p-3 border rounded-lg text-lg">
           <input id="carType" type="text" placeholder="차종" class="w-full p-3 border rounded-lg text-lg">
-          <label class="block text-sm font-medium text-gray-600">차량2부제 예외</label>
+          <label class="block text-sm font-medium text-gray-600">차량 부제 예외 (O인 경우 항시 통과)</label>
           <select id="isException" class="w-full p-3 border rounded-lg text-lg">
             <option value="X">X</option>
             <option value="O">O</option>
@@ -211,7 +211,7 @@
     currentIndex = -1;
   }
 
-  // 핵심 수정 부분: 차량 2부제(홀짝제) 로직
+  // 핵심 수정: 2부제(전 소속) 및 5부제(기타 소속) 적용 검색 로직
   window.searchCar = async function() {
     const num = document.getElementById('searchNum').value.trim();
     const resultDiv = document.getElementById('searchResult');
@@ -222,32 +222,62 @@
     let found = false;
     resultDiv.innerHTML = "";
 
-    // 날짜 및 홀짝 판별
-    const today = new Date().getDate(); // 현재 일자
-    const isTodayEven = today % 2 === 0; // 오늘이 짝수날인가?
+    // 날짜 정보
+    const now = new Date();
+    const todayDate = now.getDate(); // 2부제용 일자
+    const dayOfWeek = now.getDay(); // 5부제용 요일 (0:일, 1:월 ~ 5:금, 6:토)
+    const isTodayEven = todayDate % 2 === 0;
 
     snap.forEach(docSnap => {
       const d = docSnap.data();
       const carNum = decrypt(d.carNum);
+      
       if (carNum.slice(-4) === num) {
         found = true;
         const lastDigit = parseInt(carNum.slice(-1));
-        const isCarEven = lastDigit % 2 === 0; // 차량번호 끝자리가 짝수인가?
+        const isCarEven = lastDigit % 2 === 0;
+        const orgName = decrypt(d.org);
         const isEx = d.exception ? decrypt(d.exception) : 'X';
         
-        // 위반 여부: 오늘이 짝수인데 차가 홀수거나, 오늘이 홀수인데 차가 짝수인 경우
-        const isViolated = isTodayEven !== isCarEven;
-        
-        let html = `<div class="text-left border p-4 rounded-lg mb-3 bg-gray-50 border-l-4 ${isViolated && isEx === 'X' ? 'border-l-red-500' : 'border-l-blue-500'}">
+        let isViolated = false;
+        let violationMsg = "";
+
+        // 1. 제외 대상 확인 (O이면 무조건 통과)
+        if (isEx === 'O') {
+          isViolated = false;
+        } 
+        // 2. 소속이 '기타'인 경우 -> 차량 5부제 적용
+        else if (orgName === "기타") {
+          // 월(1):1,6 / 화(2):2,7 / 수(3):3,8 / 목(4):4,9 / 금(5):5,0 (주말은 미적용)
+          const fiveDayRules = {
+            1: [1, 6], 2: [2, 7], 3: [3, 8], 4: [4, 9], 5: [5, 0]
+          };
+          
+          if (fiveDayRules[dayOfWeek] && fiveDayRules[dayOfWeek].includes(lastDigit)) {
+            isViolated = true;
+            violationMsg = `차량5부제 위반 (금일 끝자리 ${fiveDayRules[dayOfWeek].join(',')}번 운행불가)`;
+          }
+        } 
+        // 3. 그 외 모든 소속 -> 차량 2부제(홀짝제) 적용
+        else {
+          isViolated = (isTodayEven !== isCarEven);
+          if (isViolated) {
+            violationMsg = `차량2부제 위반 (${isTodayEven ? '짝수' : '홀수'}일 운행불가)`;
+          }
+        }
+
+        let html = `<div class="text-left border p-4 rounded-lg mb-3 bg-gray-50 border-l-4 ${isViolated ? 'border-l-red-500' : 'border-l-blue-500'}">
           <p><b>이름:</b> ${decrypt(d.name)}</p>
-          <p><b>소속:</b> ${decrypt(d.org)}</p>`;
+          <p><b>소속:</b> ${orgName}</p>`;
         if(currentRole === 'admin') html += `<p><b>전화번호:</b> ${decrypt(d.phone)}</p>`;
         html += `<p><b>차량번호:</b> ${carNum}</p><p><b>차종:</b> ${decrypt(d.carType)}</p>`;
         
         if (isEx === 'O') {
-          html += `<p class="mt-2 text-blue-600 font-bold">● 차량2부제 제외대상 (O)</p>`;
+          html += `<p class="mt-2 text-blue-600 font-bold">● 차량부제 제외대상 (O)</p>`;
         } else if (isViolated) {
-          html += `<p class="mt-2 text-red-600 font-bold">● 차량2부제 위반 (${isTodayEven ? '짝수' : '홀수'}일 운행불가)</p>`;
+          html += `<p class="mt-2 text-red-600 font-bold">● ${violationMsg}</p>`;
+        } else {
+          html += `<p class="mt-2 text-green-600 font-bold">● 부제 준수 (운행 가능)</p>`;
         }
         html += `</div>`;
         resultDiv.innerHTML += html;
@@ -255,6 +285,8 @@
     });
     if(!found) resultDiv.innerHTML = "검색 결과가 없습니다.";
   };
+
+  // --- 기존 관리 기능 코드 유지 ---
 
   window.loadSelectDeleteList = async function() {
     const listDiv = document.getElementById("selectDeleteList");
@@ -287,10 +319,8 @@
       document.getElementById('editCarType').value = cb.dataset.cartype;
       document.getElementById('editEx').value = cb.dataset.ex;
     } else {
-      document.getElementById('editName').value = "";
-      document.getElementById('editOrg').value = "";
-      document.getElementById('editPhone').value = "";
-      document.getElementById('editCarType').value = "";
+      document.getElementById('editName').value = ""; document.getElementById('editOrg').value = "";
+      document.getElementById('editPhone').value = ""; document.getElementById('editCarType').value = "";
       document.getElementById('editEx').value = "";
     }
     document.getElementById('editModal').classList.remove('hidden');
@@ -305,23 +335,16 @@
     const p = document.getElementById('editPhone').value.trim();
     const t = document.getElementById('editCarType').value.trim();
     const ex = document.getElementById('editEx').value;
-
     const batch = writeBatch(db);
     checks.forEach(c => {
       const docRef = doc(db, "cars", c.value);
       const up = {};
-      if(n) up.name = encrypt(n);
-      if(o) up.org = encrypt(o);
-      if(p) up.phone = encrypt(p);
-      if(t) up.carType = encrypt(t);
+      if(n) up.name = encrypt(n); if(o) up.org = encrypt(o);
+      if(p) up.phone = encrypt(p); if(t) up.carType = encrypt(t);
       if(ex) up.exception = encrypt(ex);
       if(Object.keys(up).length > 0) batch.update(docRef, up);
     });
-
-    await batch.commit();
-    alert("수정 완료");
-    window.closeEditModal();
-    window.loadSelectDeleteList();
+    await batch.commit(); alert("수정 완료"); window.closeEditModal(); window.loadSelectDeleteList();
   };
 
   window.deleteSelectedData = async function() {
@@ -338,9 +361,7 @@
     const batch = writeBatch(db);
     snap.forEach(d => batch.delete(d.ref));
     await batch.commit();
-    alert("전체 삭제 완료");
-    window.loadSelectDeleteList();
-    window.clearAllSearch();
+    alert("전체 삭제 완료"); window.loadSelectDeleteList(); window.clearAllSearch();
   };
 
   window.saveData = async function() {
@@ -354,8 +375,7 @@
       carType: encrypt(document.getElementById('carType').value),
       exception: encrypt(document.getElementById('isException').value)
     });
-    alert("등록 완료");
-    window.loadSelectDeleteList();
+    alert("등록 완료"); window.loadSelectDeleteList();
   };
 
   window.uploadExcel = async () => {
@@ -399,8 +419,7 @@
     });
     if(foundElements.length > 0) {
       document.getElementById('searchNav').classList.remove('hidden');
-      currentIndex = 0;
-      updateSearchUI();
+      currentIndex = 0; updateSearchUI();
     }
   };
 
